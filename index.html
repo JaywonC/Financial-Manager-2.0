@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Financial Manager - Dashboard</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Financial Manager</h1>
+    <nav class="nav">
+      <a class="active" href="index.html">Dashboard</a>
+      <a href="transactions.html">Transactions</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="grid">
+      <div class="card">
+        <div class="label">Current Balance</div>
+        <div id="balance" class="big">$0</div>
+      </div>
+      <div class="card">
+        <div class="label">Income (This Month)</div>
+        <div id="incomeMonth" class="big">$0</div>
+      </div>
+      <div class="card">
+        <div class="label">Expenses (This Month)</div>
+        <div id="expenseMonth" class="big">$0</div>
+      </div>
+      <div class="card">
+        <div class="label">Net (This Month)</div>
+        <div id="netMonth" class="big">$0</div>
+      </div>
+    </section>
+    
+    <section class="pageHead">
+        <div class="pageTitle">
+            <h2>Dashboard</h2>
+            <div class="sub">Your month at a glance — balance, spending, and top categories.</div>
+        </div>
+    </section>
+
+    <section class="card">
+      <div class="cardHeader">
+        <h2>Top Spending Categories (This Month)</h2>
+        <div class="muted" id="monthLabel"></div>
+      </div>
+      <ul id="topCategories" class="list"></ul>
+      <div id="emptyTopCategories" class="muted hidden">No expenses yet this month.</div>
+    </section>
+  </main>
+
+  <script src="js/utils.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/calculations.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>
