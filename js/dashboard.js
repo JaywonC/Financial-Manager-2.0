@@ -8,10 +8,11 @@ function initDashboard(profile) {
   const monthLabel = document.getElementById("monthLabel");
   if (monthLabel) monthLabel.textContent = ym;
 
-  // ✅ Starting balances from profile
+  // ✅ Starting balances from profile (NOW includes cash too)
   const startingTotal = profile
     ? (Number(profile.balances?.checking) || 0) +
-      (Number(profile.balances?.savings) || 0)
+      (Number(profile.balances?.savings) || 0) +
+      (Number(profile.balances?.cash) || 0)
     : 0;
 
   // Existing transaction net
@@ -21,16 +22,23 @@ function initDashboard(profile) {
   document.getElementById("balance").textContent =
     formatMoney(startingTotal + netFromTransactions);
 
-  // Monthly summary (transactions only)
+  // Monthly summary (transactions)
   const monthly = getMonthlySummary(transactions, ym);
+
+  // ✅ Add fixed expenses from profile to the month totals
+  const fixedTotal = profile ? (Number(profile.monthly?.fixedExpenses) || 0) : 0;
+
+  const totalExpenses = monthly.expense + fixedTotal;
+  const net = monthly.income - totalExpenses;
+
   document.getElementById("incomeMonth").textContent =
     formatMoney(monthly.income);
   document.getElementById("expenseMonth").textContent =
-    formatMoney(monthly.expense);
+    formatMoney(totalExpenses);
   document.getElementById("netMonth").textContent =
-    formatMoney(monthly.net);
+    formatMoney(net);
 
-  // Top categories
+  // Top categories (still transaction-based)
   const top = getTopCategories(transactions, ym, 5);
   const ul = document.getElementById("topCategories");
   const empty = document.getElementById("emptyTopCategories");

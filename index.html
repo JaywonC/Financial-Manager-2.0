@@ -43,22 +43,45 @@
         Savings balance
         <input id="setupSavings" type="number" step="0.01" required />
       </label>
-      
+
       <label>
         Cash on hand
         <input id="setupCash" type="number" step="0.01" required />
       </label>
 
-      
       <label>
         Monthly income (after tax)
         <input id="setupIncome" type="number" step="0.01" required />
       </label>
 
       <label>
-        Monthly fixed expenses
+        Monthly fixed expenses (total)
         <input id="setupFixedExpenses" type="number" step="0.01" required />
       </label>
+
+      <!-- ✅ NEW: Itemized fixed expenses -->
+      <h3 style="margin-top:18px;">Fixed expenses (optional)</h3>
+
+      <div style="display:grid; gap:10px;">
+        <div style="display:grid; grid-template-columns: 1fr 140px; gap:10px;">
+          <input id="fxName1" type="text" placeholder="e.g. Spotify" />
+          <input id="fxAmt1" type="number" step="0.01" placeholder="11.99" />
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 140px; gap:10px;">
+          <input id="fxName2" type="text" placeholder="e.g. Netflix" />
+          <input id="fxAmt2" type="number" step="0.01" placeholder="15.49" />
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 140px; gap:10px;">
+          <input id="fxName3" type="text" placeholder="e.g. iCloud" />
+          <input id="fxAmt3" type="number" step="0.01" placeholder="0.99" />
+        </div>
+      </div>
+
+      <p class="muted" style="margin-top:8px;">
+        Leave blank if you don’t have any.
+      </p>
 
       <button class="btn wide" type="submit">Finish Setup</button>
       <p id="setupError" class="muted" style="display:none; color:#b00020;"></p>
@@ -87,6 +110,13 @@
         <div>Monthly Surplus: <strong id="surplusDisplay">$0</strong></div>
         <div>Savings Rate: <strong id="savingsRateDisplay">0%</strong></div>
       </div>
+    </div>
+
+    <!-- ✅ NEW: Fixed expenses list (shows each item like Spotify) -->
+    <div style="padding:0 24px 24px; max-width:520px;">
+      <h3 style="margin: 0 0 10px 0;">Fixed Expenses</h3>
+      <ul id="fixedList" class="list"></ul>
+      <div id="fixedEmpty" class="muted">No fixed expenses saved.</div>
     </div>
 
     <!-- =========================
@@ -145,8 +175,6 @@
   <script src="js/calculations.js"></script>
   <script src="js/dashboard.js"></script>
   <script src="js/profile.js"></script>
-
-  <!-- onboarding/profile JS is already inside dashboard.js per our setup -->
 
 </body>
 </html>

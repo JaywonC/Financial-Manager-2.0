@@ -46,6 +46,86 @@ function setSetupError(msg) {
   el.textContent = msg;
 }
 
+/* =========================
+   NEW: Fixed Expense Items
+========================= */
+
+function readFixedItems() {
+  const rows = [
+    { nameId: "fxName1", amtId: "fxAmt1" },
+    { nameId: "fxName2", amtId: "fxAmt2" },
+    { nameId: "fxName3", amtId: "fxAmt3" }
+  ];
+
+  const items = [];
+
+  for (const r of rows) {
+    const nameEl = $(r.nameId);
+    const amtEl = $(r.amtId);
+    if (!nameEl || !amtEl) continue;
+
+    const name = (nameEl.value || "").trim();
+    const amtRaw = amtEl.value;
+
+    // both blank -> skip row
+    if (!name && !amtRaw) continue;
+
+    const amount = Number(amtRaw);
+    if (!name || !Number.isFinite(amount) || amount < 0) {
+      setSetupError("Fixed expenses: please enter a name and a valid non-negative amount.");
+      return null;
+    }
+
+    items.push({ name, amount: Math.round(amount * 100) / 100 });
+  }
+
+  return items;
+}
+
+function prefillFixedItems(profile) {
+  const items = profile?.monthly?.fixedItems || [];
+  const slots = [
+    { nameId: "fxName1", amtId: "fxAmt1" },
+    { nameId: "fxName2", amtId: "fxAmt2" },
+    { nameId: "fxName3", amtId: "fxAmt3" }
+  ];
+
+  for (let i = 0; i < slots.length; i++) {
+    const it = items[i];
+    const nameEl = $(slots[i].nameId);
+    const amtEl = $(slots[i].amtId);
+    if (!nameEl || !amtEl) continue;
+
+    nameEl.value = it?.name ?? "";
+    amtEl.value = it?.amount ?? "";
+  }
+}
+
+function renderFixedList(profile) {
+  const fixedList = $("fixedList");
+  const fixedEmpty = $("fixedEmpty");
+  if (!fixedList || !fixedEmpty) return;
+
+  const items = profile?.monthly?.fixedItems || [];
+
+  fixedList.innerHTML = "";
+  if (!items.length) {
+    fixedEmpty.style.display = "block";
+    return;
+  }
+
+  fixedEmpty.style.display = "none";
+  for (const it of items) {
+    const li = document.createElement("li");
+    li.innerHTML = `<span>${it.name}</span><strong>${money(it.amount)}</strong>`;
+    fixedList.appendChild(li);
+  }
+}
+
+/* =========================
+   Existing logic (updated)
+========================= */
+
 function prefillSetupForm(profile) {
   $("setupName").value = profile?.name ?? "";
   $("setupChecking").value = profile?.balances?.checking ?? "";
@@ -53,6 +133,9 @@ function prefillSetupForm(profile) {
   $("setupCash").value = profile?.balances?.cash ?? "";
   $("setupIncome").value = profile?.monthly?.income ?? "";
   $("setupFixedExpenses").value = profile?.monthly?.fixedExpenses ?? "";
+
+  // ✅ NEW: prefill fixed items rows
+  prefillFixedItems(profile);
 }
 
 /**
@@ -64,9 +147,11 @@ function renderFromProfile(profile) {
 
   const checking = Number(profile?.balances?.checking) || 0;
   const savings = Number(profile?.balances?.savings) || 0;
+  const cash = Number(profile?.balances?.cash) || 0;
+
   const income = Number(profile?.monthly?.income) || 0;
   const fixed = Number(profile?.monthly?.fixedExpenses) || 0;
-  const cash = Number(profile?.balances?.cash) || 0;
+
   const surplus = income - fixed;
   const rate = income > 0 ? Math.max(0, Math.min(1, surplus / income)) : 0;
 
@@ -76,7 +161,10 @@ function renderFromProfile(profile) {
   $("surplusDisplay").textContent = money(surplus);
   $("savingsRateDisplay").textContent = `${Math.round(rate * 100)}%`;
 
-  // ✅ Call your dashboard renderer (we will modify it to accept profile)
+  // ✅ NEW: show itemized fixed expenses
+  renderFixedList(profile);
+
+  // ✅ Call your dashboard renderer
   if (typeof initDashboard === "function") {
     initDashboard(profile);
   }
@@ -87,15 +175,21 @@ function onSetupSubmit(e) {
   setSetupError("");
 
   const name = $("setupName").value.trim();
+
   const checking = Number($("setupChecking").value);
   const savings = Number($("setupSavings").value);
+  const cash = Number($("setupCash").value);
+
   const income = Number($("setupIncome").value);
   const fixedExpenses = Number($("setupFixedExpenses").value);
-  const cash = Number($("setupCash").value);
+
+  // ✅ NEW: read itemized fixed expenses
+  const fixedItems = readFixedItems();
+  if (fixedItems === null) return;
 
   if (![checking, savings, cash, income, fixedExpenses].every(Number.isFinite)) {
     setSetupError("Please enter valid numbers in all required fields.");
-  return;
+    return;
   }
 
   if (checking < 0 || savings < 0 || cash < 0 || income < 0 || fixedExpenses < 0) {
@@ -103,11 +197,14 @@ function onSetupSubmit(e) {
     return;
   }
 
-
   const profile = {
     name: name || null,
     balances: { checking, savings, cash },
-    monthly: { income, fixedExpenses },
+    monthly: {
+      income,
+      fixedExpenses,      // keep your total input
+      fixedItems          // ✅ NEW: store itemized list
+    },
     createdAt: new Date().toISOString()
   };
 
@@ -129,7 +226,6 @@ function onEditProfile() {
 }
 
 function onResetAtlas() {
-  // remove profile only
   localStorage.removeItem(PROFILE_KEY);
 
   // OPTIONAL full reset (transactions too). Uncomment if you want:
