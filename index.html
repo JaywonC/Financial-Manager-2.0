@@ -31,7 +31,7 @@
     <form id="setupForm" class="form">
       <label>
         Name (optional)
-        <input id="setupName" type="text" placeholder="e.g. Jaywon" />
+        <input id="setupName" type="text" placeholder="e.g. Uri" />
       </label>
 
       <label>
@@ -54,12 +54,7 @@
         <input id="setupIncome" type="number" step="0.01" required />
       </label>
 
-      <label>
-        Monthly fixed expenses (total)
-        <input id="setupFixedExpenses" type="number" step="0.01" required />
-      </label>
-
-      <!-- ✅ NEW: Itemized fixed expenses -->
+      <!-- ✅ Itemized fixed expenses -->
       <h3 style="margin-top:18px;">Fixed expenses (optional)</h3>
 
       <div style="display:grid; gap:10px;">
@@ -112,7 +107,7 @@
       </div>
     </div>
 
-    <!-- ✅ NEW: Fixed expenses list (shows each item like Spotify) -->
+    <!-- Fixed expenses list -->
     <div style="padding:0 24px 24px; max-width:520px;">
       <h3 style="margin: 0 0 10px 0;">Fixed Expenses</h3>
       <ul id="fixedList" class="list"></ul>

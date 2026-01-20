@@ -47,7 +47,7 @@ function setSetupError(msg) {
 }
 
 /* =========================
-   NEW: Fixed Expense Items
+   FIXED EXPENSE ITEMS
 ========================= */
 
 function readFixedItems() {
@@ -67,10 +67,12 @@ function readFixedItems() {
     const name = (nameEl.value || "").trim();
     const amtRaw = amtEl.value;
 
-    // both blank -> skip row
+    // Both blank -> skip row
     if (!name && !amtRaw) continue;
 
     const amount = Number(amtRaw);
+
+    // If they started a row, it must be valid
     if (!name || !Number.isFinite(amount) || amount < 0) {
       setSetupError("Fixed expenses: please enter a name and a valid non-negative amount.");
       return null;
@@ -123,23 +125,33 @@ function renderFixedList(profile) {
 }
 
 /* =========================
-   Existing logic (updated)
+   EXISTING LOGIC (UPDATED)
 ========================= */
 
 function prefillSetupForm(profile) {
+  // If profile is null, avoid crashing
+  if (!profile) {
+    if ($("setupName")) $("setupName").value = "";
+    if ($("setupChecking")) $("setupChecking").value = "";
+    if ($("setupSavings")) $("setupSavings").value = "";
+    if ($("setupCash")) $("setupCash").value = "";
+    if ($("setupIncome")) $("setupIncome").value = "";
+    prefillFixedItems(null);
+    return;
+  }
+
   $("setupName").value = profile?.name ?? "";
   $("setupChecking").value = profile?.balances?.checking ?? "";
   $("setupSavings").value = profile?.balances?.savings ?? "";
   $("setupCash").value = profile?.balances?.cash ?? "";
   $("setupIncome").value = profile?.monthly?.income ?? "";
-  $("setupFixedExpenses").value = profile?.monthly?.fixedExpenses ?? "";
 
-  // ✅ NEW: prefill fixed items rows
+  // ✅ Prefill fixed items rows
   prefillFixedItems(profile);
 }
 
 /**
- * Render profile summary cards + trigger your existing dashboard render.
+ * Render profile summary cards + trigger dashboard render.
  */
 function renderFromProfile(profile) {
   const name = (profile?.name || "").trim();
@@ -150,6 +162,8 @@ function renderFromProfile(profile) {
   const cash = Number(profile?.balances?.cash) || 0;
 
   const income = Number(profile?.monthly?.income) || 0;
+
+  // ✅ fixedExpenses is now computed, but still stored on profile
   const fixed = Number(profile?.monthly?.fixedExpenses) || 0;
 
   const surplus = income - fixed;
@@ -161,10 +175,10 @@ function renderFromProfile(profile) {
   $("surplusDisplay").textContent = money(surplus);
   $("savingsRateDisplay").textContent = `${Math.round(rate * 100)}%`;
 
-  // ✅ NEW: show itemized fixed expenses
+  // Show itemized fixed expenses
   renderFixedList(profile);
 
-  // ✅ Call your dashboard renderer
+  // Call dashboard renderer
   if (typeof initDashboard === "function") {
     initDashboard(profile);
   }
@@ -181,18 +195,20 @@ function onSetupSubmit(e) {
   const cash = Number($("setupCash").value);
 
   const income = Number($("setupIncome").value);
-  const fixedExpenses = Number($("setupFixedExpenses").value);
 
-  // ✅ NEW: read itemized fixed expenses
+  // ✅ Read itemized fixed expenses
   const fixedItems = readFixedItems();
   if (fixedItems === null) return;
 
-  if (![checking, savings, cash, income, fixedExpenses].every(Number.isFinite)) {
+  // ✅ Compute fixed total automatically
+  const fixedExpenses = fixedItems.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
+
+  if (![checking, savings, cash, income].every(Number.isFinite)) {
     setSetupError("Please enter valid numbers in all required fields.");
     return;
   }
 
-  if (checking < 0 || savings < 0 || cash < 0 || income < 0 || fixedExpenses < 0) {
+  if (checking < 0 || savings < 0 || cash < 0 || income < 0) {
     setSetupError("Numbers can’t be negative for setup.");
     return;
   }
@@ -202,8 +218,8 @@ function onSetupSubmit(e) {
     balances: { checking, savings, cash },
     monthly: {
       income,
-      fixedExpenses,      // keep your total input
-      fixedItems          // ✅ NEW: store itemized list
+      fixedExpenses, // ✅ auto computed
+      fixedItems     // ✅ stored list
     },
     createdAt: new Date().toISOString()
   };
