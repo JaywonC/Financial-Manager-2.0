@@ -43,7 +43,13 @@
         Savings balance
         <input id="setupSavings" type="number" step="0.01" required />
       </label>
+      
+      <label>
+        Cash on hand
+        <input id="setupCash" type="number" step="0.01" required />
+      </label>
 
+      
       <label>
         Monthly income (after tax)
         <input id="setupIncome" type="number" step="0.01" required />
@@ -77,6 +83,7 @@
       <div style="display:grid; gap:10px; max-width:520px;">
         <div>Checking: <strong id="checkingDisplay">$0</strong></div>
         <div>Savings: <strong id="savingsDisplay">$0</strong></div>
+        <div>Cash: <strong id="cashDisplay">$0</strong></div>
         <div>Monthly Surplus: <strong id="surplusDisplay">$0</strong></div>
         <div>Savings Rate: <strong id="savingsRateDisplay">0%</strong></div>
       </div>

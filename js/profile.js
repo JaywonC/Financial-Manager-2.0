@@ -50,6 +50,7 @@ function prefillSetupForm(profile) {
   $("setupName").value = profile?.name ?? "";
   $("setupChecking").value = profile?.balances?.checking ?? "";
   $("setupSavings").value = profile?.balances?.savings ?? "";
+  $("setupCash").value = profile?.balances?.cash ?? "";
   $("setupIncome").value = profile?.monthly?.income ?? "";
   $("setupFixedExpenses").value = profile?.monthly?.fixedExpenses ?? "";
 }
@@ -65,12 +66,13 @@ function renderFromProfile(profile) {
   const savings = Number(profile?.balances?.savings) || 0;
   const income = Number(profile?.monthly?.income) || 0;
   const fixed = Number(profile?.monthly?.fixedExpenses) || 0;
-
+  const cash = Number(profile?.balances?.cash) || 0;
   const surplus = income - fixed;
   const rate = income > 0 ? Math.max(0, Math.min(1, surplus / income)) : 0;
 
   $("checkingDisplay").textContent = money(checking);
   $("savingsDisplay").textContent = money(savings);
+  $("cashDisplay").textContent = money(cash);
   $("surplusDisplay").textContent = money(surplus);
   $("savingsRateDisplay").textContent = `${Math.round(rate * 100)}%`;
 
@@ -89,19 +91,22 @@ function onSetupSubmit(e) {
   const savings = Number($("setupSavings").value);
   const income = Number($("setupIncome").value);
   const fixedExpenses = Number($("setupFixedExpenses").value);
+  const cash = Number($("setupCash").value);
 
-  if (![checking, savings, income, fixedExpenses].every(Number.isFinite)) {
+  if (![checking, savings, cash, income, fixedExpenses].every(Number.isFinite)) {
     setSetupError("Please enter valid numbers in all required fields.");
-    return;
+  return;
   }
-  if (checking < 0 || savings < 0 || income < 0 || fixedExpenses < 0) {
+
+  if (checking < 0 || savings < 0 || cash < 0 || income < 0 || fixedExpenses < 0) {
     setSetupError("Numbers can’t be negative for setup.");
     return;
   }
 
+
   const profile = {
     name: name || null,
-    balances: { checking, savings },
+    balances: { checking, savings, cash },
     monthly: { income, fixedExpenses },
     createdAt: new Date().toISOString()
   };
