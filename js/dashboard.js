@@ -1,27 +1,42 @@
-(function initDashboard() {
+function initDashboard(profile) {
   loadState();
 
   const { transactions } = getState();
   const ym = currentYearMonth();
 
-  // Labels
+  // Month label
   const monthLabel = document.getElementById("monthLabel");
   if (monthLabel) monthLabel.textContent = ym;
 
-  // Cards
-  document.getElementById("balance").textContent = formatMoney(getBalance(transactions));
+  // ✅ Starting balances from profile
+  const startingTotal = profile
+    ? (Number(profile.balances?.checking) || 0) +
+      (Number(profile.balances?.savings) || 0)
+    : 0;
 
+  // Existing transaction net
+  const netFromTransactions = getBalance(transactions);
+
+  // ✅ True current balance
+  document.getElementById("balance").textContent =
+    formatMoney(startingTotal + netFromTransactions);
+
+  // Monthly summary (transactions only)
   const monthly = getMonthlySummary(transactions, ym);
-  document.getElementById("incomeMonth").textContent = formatMoney(monthly.income);
-  document.getElementById("expenseMonth").textContent = formatMoney(monthly.expense);
-  document.getElementById("netMonth").textContent = formatMoney(monthly.net);
+  document.getElementById("incomeMonth").textContent =
+    formatMoney(monthly.income);
+  document.getElementById("expenseMonth").textContent =
+    formatMoney(monthly.expense);
+  document.getElementById("netMonth").textContent =
+    formatMoney(monthly.net);
 
-  // Top categories list
+  // Top categories
   const top = getTopCategories(transactions, ym, 5);
   const ul = document.getElementById("topCategories");
   const empty = document.getElementById("emptyTopCategories");
 
   ul.innerHTML = "";
+
   if (top.length === 0) {
     empty.classList.remove("hidden");
   } else {
@@ -32,4 +47,4 @@
       ul.appendChild(li);
     }
   }
-})();
+}

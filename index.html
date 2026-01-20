@@ -3,58 +3,141 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Financial Manager - Dashboard</title>
+  <title>Atlas – Dashboard</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
+
 <body>
+  <!-- =========================
+       TOP NAV BAR
+  ========================== -->
   <header class="topbar">
-    <h1>Financial Manager</h1>
+    <h1>Atlas</h1>
     <nav class="nav">
       <a class="active" href="index.html">Dashboard</a>
       <a href="transactions.html">Transactions</a>
     </nav>
   </header>
 
-  <main class="container">
-    <section class="grid">
-      <div class="card">
-        <div class="label">Current Balance</div>
-        <div id="balance" class="big">$0</div>
+  <!-- =========================
+       SETUP / ONBOARDING VIEW
+  ========================== -->
+  <section id="setupView" style="display:none; max-width:720px; margin:40px auto; padding:24px;">
+    <h1>Welcome to Atlas</h1>
+    <p class="muted">
+      Set your starting snapshot so Atlas can personalize your dashboard.
+    </p>
+
+    <form id="setupForm" class="form">
+      <label>
+        Name (optional)
+        <input id="setupName" type="text" placeholder="e.g. Jaywon" />
+      </label>
+
+      <label>
+        Checking balance
+        <input id="setupChecking" type="number" step="0.01" required />
+      </label>
+
+      <label>
+        Savings balance
+        <input id="setupSavings" type="number" step="0.01" required />
+      </label>
+
+      <label>
+        Monthly income (after tax)
+        <input id="setupIncome" type="number" step="0.01" required />
+      </label>
+
+      <label>
+        Monthly fixed expenses
+        <input id="setupFixedExpenses" type="number" step="0.01" required />
+      </label>
+
+      <button class="btn wide" type="submit">Finish Setup</button>
+      <p id="setupError" class="muted" style="display:none; color:#b00020;"></p>
+    </form>
+  </section>
+
+  <!-- =========================
+       DASHBOARD VIEW
+  ========================== -->
+  <section id="dashboardView" style="display:none;">
+
+    <!-- Profile controls -->
+    <div style="display:flex; gap:10px; justify-content:flex-end; padding:12px 24px;">
+      <button id="editProfileBtn" class="btn" type="button">Edit Profile</button>
+      <button id="resetAtlasBtn" class="btn" type="button">Reset Atlas</button>
+    </div>
+
+    <!-- Profile summary -->
+    <div style="padding:0 24px 24px;">
+      <h2 id="welcomeTitle"></h2>
+
+      <div style="display:grid; gap:10px; max-width:520px;">
+        <div>Checking: <strong id="checkingDisplay">$0</strong></div>
+        <div>Savings: <strong id="savingsDisplay">$0</strong></div>
+        <div>Monthly Surplus: <strong id="surplusDisplay">$0</strong></div>
+        <div>Savings Rate: <strong id="savingsRateDisplay">0%</strong></div>
       </div>
-      <div class="card">
-        <div class="label">Income (This Month)</div>
-        <div id="incomeMonth" class="big">$0</div>
-      </div>
-      <div class="card">
-        <div class="label">Expenses (This Month)</div>
-        <div id="expenseMonth" class="big">$0</div>
-      </div>
-      <div class="card">
-        <div class="label">Net (This Month)</div>
-        <div id="netMonth" class="big">$0</div>
-      </div>
-    </section>
-    
-    <section class="pageHead">
-        <div class="pageTitle">
-            <h2>Dashboard</h2>
-            <div class="sub">Your month at a glance — balance, spending, and top categories.</div>
+    </div>
+
+    <!-- =========================
+         EXISTING DASHBOARD CONTENT
+    ========================== -->
+    <main class="container">
+
+      <section class="grid">
+        <div class="card">
+          <div class="label">Current Balance</div>
+          <div id="balance" class="big">$0</div>
         </div>
-    </section>
+        <div class="card">
+          <div class="label">Income (This Month)</div>
+          <div id="incomeMonth" class="big">$0</div>
+        </div>
+        <div class="card">
+          <div class="label">Expenses (This Month)</div>
+          <div id="expenseMonth" class="big">$0</div>
+        </div>
+        <div class="card">
+          <div class="label">Net (This Month)</div>
+          <div id="netMonth" class="big">$0</div>
+        </div>
+      </section>
 
-    <section class="card">
-      <div class="cardHeader">
-        <h2>Top Spending Categories (This Month)</h2>
-        <div class="muted" id="monthLabel"></div>
-      </div>
-      <ul id="topCategories" class="list"></ul>
-      <div id="emptyTopCategories" class="muted hidden">No expenses yet this month.</div>
-    </section>
-  </main>
+      <section class="pageHead">
+        <div class="pageTitle">
+          <h2>Dashboard</h2>
+          <div class="sub">
+            Your month at a glance — balance, spending, and top categories.
+          </div>
+        </div>
+      </section>
 
+      <section class="card">
+        <div class="cardHeader">
+          <h2>Top Spending Categories (This Month)</h2>
+          <div class="muted" id="monthLabel"></div>
+        </div>
+
+        <ul id="topCategories" class="list"></ul>
+        <div id="emptyTopCategories" class="muted hidden">
+          No expenses yet this month.
+        </div>
+      </section>
+
+    </main>
+  </section>
+
+  <!-- =========================
+       SCRIPTS (ORDER MATTERS)
+  ========================== -->
   <script src="js/utils.js"></script>
   <script src="js/state.js"></script>
   <script src="js/calculations.js"></script>
   <script src="js/dashboard.js"></script>
+  <!-- onboarding/profile JS is already inside dashboard.js per our setup -->
+
 </body>
 </html>
