@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title> Atlas - Transactions</title>
+  <title>Atlas - Transactions</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
   <header class="topbar">
-    <h1> Atlas </h1>
+    <h1>Atlas</h1>
     <nav class="nav">
       <a href="index.html">Dashboard</a>
       <a class="active" href="transactions.html">Transactions</a>
@@ -25,6 +25,7 @@
           <select id="txType" required>
             <option value="expense" selected>Expense</option>
             <option value="income">Income</option>
+            <option value="transfer">Transfer</option>
           </select>
         </label>
 
@@ -50,8 +51,8 @@
           </select>
         </label>
 
-        <!-- ✅ NEW: Account selector -->
-        <label>
+        <!-- ✅ Income/Expense Account -->
+        <label id="accountSingleWrap">
           Account
           <select id="txAccount" required>
             <option value="checking" selected>Checking</option>
@@ -59,6 +60,27 @@
             <option value="cash">Cash</option>
           </select>
         </label>
+
+        <!-- ✅ Transfer From/To -->
+        <div id="accountTransferWrap" style="display:none;">
+          <label>
+            From
+            <select id="txFromAccount">
+              <option value="checking" selected>Checking</option>
+              <option value="savings">Savings</option>
+              <option value="cash">Cash</option>
+            </select>
+          </label>
+
+          <label>
+            To
+            <select id="txToAccount">
+              <option value="checking">Checking</option>
+              <option value="savings" selected>Savings</option>
+              <option value="cash">Cash</option>
+            </select>
+          </label>
+        </div>
 
         <label class="wide">
           Note (optional)
@@ -68,7 +90,7 @@
         <button class="btn wide" type="submit">Add</button>
       </form>
     </section>
-    
+
     <section class="pageHead">
       <div class="pageTitle">
         <h2>Transactions</h2>
