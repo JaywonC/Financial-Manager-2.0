@@ -13,6 +13,7 @@
     const amount = Number(document.getElementById("txAmount").value);
     const date = document.getElementById("txDate").value;
     const category = document.getElementById("txCategory").value;
+    const account = document.getElementById("txAccount")?.value || "checking";
     const note = document.getElementById("txNote").value.trim();
 
     if (!date || !Number.isFinite(amount) || amount <= 0) return;
@@ -23,6 +24,7 @@
       amount: Math.round(amount * 100) / 100,
       date,
       category,
+      account, // ✅ NEW
       note
     };
 
@@ -30,9 +32,12 @@
     saveState();
     form.reset();
 
-    // Keep date defaulted and category/type reasonable
+    // Keep date defaulted and category/type/account reasonable
     document.getElementById("txType").value = "expense";
     document.getElementById("txCategory").value = "Other";
+    if (document.getElementById("txAccount")) {
+      document.getElementById("txAccount").value = "checking";
+    }
     document.getElementById("txDate").value = todayISO();
 
     rerender();
@@ -42,6 +47,15 @@
     state.transactions = state.transactions.filter(t => t.id !== id);
     saveState();
     rerender();
+  }
+
+  function prettyAccount(a) {
+    if (!a) return "Checking";
+    const x = String(a).toLowerCase();
+    if (x === "checking") return "Checking";
+    if (x === "savings") return "Savings";
+    if (x === "cash") return "Cash";
+    return "Checking";
   }
 
   function rerender() {
@@ -68,6 +82,7 @@
         <td>${t.date}</td>
         <td><span class="${pillClass}">${t.type}</span></td>
         <td>${t.category || "Other"}</td>
+        <td>${prettyAccount(t.account)}</td>
         <td>${t.note ? escapeHtml(t.note) : "<span class='muted'>—</span>"}</td>
         <td class="right">${formatMoney(t.amount)}</td>
         <td class="right"><button class="btn" data-del="${t.id}" type="button">Delete</button></td>

@@ -50,6 +50,16 @@
           </select>
         </label>
 
+        <!-- ✅ NEW: Account selector -->
+        <label>
+          Account
+          <select id="txAccount" required>
+            <option value="checking" selected>Checking</option>
+            <option value="savings">Savings</option>
+            <option value="cash">Cash</option>
+          </select>
+        </label>
+
         <label class="wide">
           Note (optional)
           <input id="txNote" type="text" maxlength="80" placeholder="e.g. Chipotle after practice" />
@@ -60,10 +70,10 @@
     </section>
     
     <section class="pageHead">
-            <div class="pageTitle">
-            <h2>Transactions</h2>
-            <div class="sub">Add, review, and manage your income and expenses.</div>
-        </div>
+      <div class="pageTitle">
+        <h2>Transactions</h2>
+        <div class="sub">Add, review, and manage your income and expenses.</div>
+      </div>
     </section>
 
     <section class="card">
@@ -79,6 +89,7 @@
               <th>Date</th>
               <th>Type</th>
               <th>Category</th>
+              <th>Account</th>
               <th>Note</th>
               <th class="right">Amount</th>
               <th class="right">Action</th>

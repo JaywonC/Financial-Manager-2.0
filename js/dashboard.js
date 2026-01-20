@@ -8,29 +8,32 @@ function initDashboard(profile) {
   const monthLabel = document.getElementById("monthLabel");
   if (monthLabel) monthLabel.textContent = ym;
 
-  // ✅ Starting balances from profile (includes cash)
-  const startingTotal = profile
-    ? (Number(profile.balances?.checking) || 0) +
-      (Number(profile.balances?.savings) || 0) +
-      (Number(profile.balances?.cash) || 0)
-    : 0;
+  // ✅ NEW: Live balances by account (starting + transactions)
+  const acctBalances = getAccountBalances(transactions, profile);
+  const totalBalance = getTotalBalanceFromAccounts(acctBalances);
 
-  // Existing transaction net
-  const netFromTransactions = getBalance(transactions);
-
-  // ✅ True current balance
+  // ✅ True current balance (now uses account balances)
   const balanceEl = document.getElementById("balance");
   if (balanceEl) {
-    balanceEl.textContent = formatMoney(startingTotal + netFromTransactions);
+    balanceEl.textContent = formatMoney(totalBalance);
   }
+
+  // ✅ OPTIONAL BUT NICE: update your summary balances if those elements exist
+  const checkingDisplay = document.getElementById("checkingDisplay");
+  const savingsDisplay = document.getElementById("savingsDisplay");
+  const cashDisplay = document.getElementById("cashDisplay");
+
+  if (checkingDisplay) checkingDisplay.textContent = formatMoney(acctBalances.checking);
+  if (savingsDisplay) savingsDisplay.textContent = formatMoney(acctBalances.savings);
+  if (cashDisplay) cashDisplay.textContent = formatMoney(acctBalances.cash);
 
   // Monthly summary (transactions)
   const monthly = getMonthlySummary(transactions, ym);
 
-  // ✅ Fixed expenses total from profile
+  // Fixed expenses total from profile
   const fixedTotal = profile ? (Number(profile.monthly?.fixedExpenses) || 0) : 0;
 
-  // ✅ Add fixed into displayed month totals
+  // Add fixed into displayed month totals
   const totalExpenses = monthly.expense + fixedTotal;
   const net = monthly.income - totalExpenses;
 
@@ -47,8 +50,8 @@ function initDashboard(profile) {
   const empty = document.getElementById("emptyTopCategories");
   if (!ul || !empty) return;
 
-  // Start with transaction-based category totals for the month
-  const totalsObj = getCategoryTotals(transactions, ym); // expenses only
+  // Start with transaction-based category totals for the month (expenses only)
+  const totalsObj = getCategoryTotals(transactions, ym);
 
   // Add fixed expenses as its own bucket
   if (fixedTotal > 0) {
