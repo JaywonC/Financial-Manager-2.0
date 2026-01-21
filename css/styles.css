@@ -279,3 +279,29 @@ select option{
   justify-content:space-between;
   gap:10px;
 }
+
+/* Middle section: force 3 columns (so no empty 4th slot) */
+.middleGrid{
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 900px){
+  .middleGrid{ grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 520px){
+  .middleGrid{ grid-template-columns: 1fr; }
+}
+
+/* Make insights/recent items stack nicely instead of "two-column flex" */
+.stackList li{
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+.stackList li strong{
+  font-weight: 700;
+  color: var(--muted);
+  font-size: 12px;
+}
