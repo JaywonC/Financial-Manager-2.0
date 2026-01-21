@@ -94,110 +94,119 @@
       <button id="resetAtlasBtn" class="btn" type="button">Reset Atlas</button>
     </div>
 
-    <!-- Profile summary -->
-    <div style="padding:0 24px 24px;">
-      <h2 id="welcomeTitle"></h2>
+    <!-- ✅ NEW: 2-column layout (fixes empty middle space) -->
+    <main class="container dashLayout">
 
-      <div style="display:grid; gap:10px; max-width:520px;">
-        <div>Checking: <strong id="checkingDisplay">$0</strong></div>
-        <div>Savings: <strong id="savingsDisplay">$0</strong></div>
-        <div>Cash: <strong id="cashDisplay">$0</strong></div>
-        <div>Monthly Surplus: <strong id="surplusDisplay">$0</strong></div>
-        <div>Savings Rate: <strong id="savingsRateDisplay">0%</strong></div>
-      </div>
-    </div>
+      <!-- LEFT COLUMN -->
+      <aside class="dashLeft">
 
-    <!-- Fixed expenses list -->
-    <div style="padding:0 24px 24px; max-width:520px;">
-      <h3 style="margin: 0 0 10px 0;">Fixed Expenses</h3>
-      <ul id="fixedList" class="list"></ul>
-      <div id="fixedEmpty" class="muted">No fixed expenses saved.</div>
-    </div>
+        <!-- Profile summary -->
+        <div style="padding:0 0 24px;">
+          <h2 id="welcomeTitle"></h2>
 
-    <!-- =========================
-         NEW: MIDDLE SECTION (fills empty space)
-    ========================== -->
-    <main class="container">
-
-      <section class="grid" style="margin-top: 6px;">
-
-        <!-- Balance breakdown -->
-        <div class="card">
-          <div class="label">Balance Breakdown</div>
-          <div id="balanceBreakdown" class="muted">—</div>
-
-          <!-- simple 3-part bar -->
-          <div style="height:10px; width:100%; border-radius:999px; overflow:hidden; margin-top:10px; background: rgba(0,0,0,0.06); display:flex;">
-            <div id="barChecking" style="height:100%; width:33%; background: rgba(0,0,0,0.25);"></div>
-            <div id="barSavings"  style="height:100%; width:33%; background: rgba(0,0,0,0.18);"></div>
-            <div id="barCash"     style="height:100%; width:34%; background: rgba(0,0,0,0.12);"></div>
-          </div>
-
-          <div class="muted" style="margin-top:8px; font-size: 12px;">
-            Checking / Savings / Cash
+          <div style="display:grid; gap:10px; max-width:520px;">
+            <div>Checking: <strong id="checkingDisplay">$0</strong></div>
+            <div>Savings: <strong id="savingsDisplay">$0</strong></div>
+            <div>Cash: <strong id="cashDisplay">$0</strong></div>
+            <div>Monthly Surplus: <strong id="surplusDisplay">$0</strong></div>
+            <div>Savings Rate: <strong id="savingsRateDisplay">0%</strong></div>
           </div>
         </div>
 
-        <!-- Quick insights -->
-        <div class="card">
-          <div class="label">Quick Insights</div>
-          <ul id="insightsList" class="list"></ul>
-          <div id="insightsEmpty" class="muted">No insights yet.</div>
+        <!-- Fixed expenses list -->
+        <div style="padding:0 0 24px; max-width:520px;">
+          <h3 style="margin: 0 0 10px 0;">Fixed Expenses</h3>
+          <ul id="fixedList" class="list"></ul>
+          <div id="fixedEmpty" class="muted">No fixed expenses saved.</div>
         </div>
 
-        <!-- Recent activity -->
-        <div class="card">
-          <div class="label">Recent Activity</div>
-          <ul id="recentList" class="list"></ul>
-          <div id="recentEmpty" class="muted">No recent transactions yet.</div>
-        </div>
+      </aside>
 
-      </section>
+      <!-- RIGHT COLUMN -->
+      <section class="dashRight">
 
-      <!-- =========================
-           EXISTING DASHBOARD CONTENT
-      ========================== -->
+        <!-- =========================
+             MIDDLE SECTION (fills empty space)
+        ========================== -->
+        <section class="grid" style="margin-top: 6px;">
 
-      <section class="grid">
-        <div class="card">
-          <div class="label">Current Balance</div>
-          <div id="balance" class="big">$0</div>
-        </div>
-        <div class="card">
-          <div class="label">Income (This Month)</div>
-          <div id="incomeMonth" class="big">$0</div>
-        </div>
-        <div class="card">
-          <div class="label">Expenses (This Month)</div>
-          <div id="expenseMonth" class="big">$0</div>
-        </div>
-        <div class="card">
-          <div class="label">Net (This Month)</div>
-          <div id="netMonth" class="big">$0</div>
-        </div>
-      </section>
+          <!-- Balance breakdown -->
+          <div class="card">
+            <div class="label">Balance Breakdown</div>
+            <div id="balanceBreakdown" class="muted">—</div>
 
-      <section class="pageHead">
-        <div class="pageTitle">
-          <h2>Dashboard</h2>
-          <div class="sub">
-            Your month at a glance — balance, spending, and top categories.
+            <!-- simple 3-part bar -->
+            <div style="height:10px; width:100%; border-radius:999px; overflow:hidden; margin-top:10px; background: rgba(0,0,0,0.06); display:flex;">
+              <div id="barChecking" style="height:100%; width:33%; background: rgba(0,0,0,0.25);"></div>
+              <div id="barSavings"  style="height:100%; width:33%; background: rgba(0,0,0,0.18);"></div>
+              <div id="barCash"     style="height:100%; width:34%; background: rgba(0,0,0,0.12);"></div>
+            </div>
+
+            <div class="muted" style="margin-top:8px; font-size: 12px;">
+              Checking / Savings / Cash
+            </div>
           </div>
-        </div>
+
+          <!-- Quick insights -->
+          <div class="card">
+            <div class="label">Quick Insights</div>
+            <ul id="insightsList" class="list"></ul>
+            <div id="insightsEmpty" class="muted">No insights yet.</div>
+          </div>
+
+          <!-- Recent activity -->
+          <div class="card">
+            <div class="label">Recent Activity</div>
+            <ul id="recentList" class="list"></ul>
+            <div id="recentEmpty" class="muted">No recent transactions yet.</div>
+          </div>
+
+        </section>
+
+        <!-- =========================
+             EXISTING DASHBOARD CONTENT
+        ========================== -->
+        <section class="grid">
+          <div class="card">
+            <div class="label">Current Balance</div>
+            <div id="balance" class="big">$0</div>
+          </div>
+          <div class="card">
+            <div class="label">Income (This Month)</div>
+            <div id="incomeMonth" class="big">$0</div>
+          </div>
+          <div class="card">
+            <div class="label">Expenses (This Month)</div>
+            <div id="expenseMonth" class="big">$0</div>
+          </div>
+          <div class="card">
+            <div class="label">Net (This Month)</div>
+            <div id="netMonth" class="big">$0</div>
+          </div>
+        </section>
+
+        <section class="pageHead">
+          <div class="pageTitle">
+            <h2>Dashboard</h2>
+            <div class="sub">
+              Your month at a glance — balance, spending, and top categories.
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="cardHeader">
+            <h2>Top Spending Categories (This Month)</h2>
+            <div class="muted" id="monthLabel"></div>
+          </div>
+
+          <ul id="topCategories" class="list"></ul>
+          <div id="emptyTopCategories" class="muted hidden">
+            No expenses yet this month.
+          </div>
+        </section>
+
       </section>
-
-      <section class="card">
-        <div class="cardHeader">
-          <h2>Top Spending Categories (This Month)</h2>
-          <div class="muted" id="monthLabel"></div>
-        </div>
-
-        <ul id="topCategories" class="list"></ul>
-        <div id="emptyTopCategories" class="muted hidden">
-          No expenses yet this month.
-        </div>
-      </section>
-
     </main>
   </section>
 
