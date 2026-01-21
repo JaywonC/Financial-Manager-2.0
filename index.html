@@ -115,9 +115,48 @@
     </div>
 
     <!-- =========================
-         EXISTING DASHBOARD CONTENT
+         NEW: MIDDLE SECTION (fills empty space)
     ========================== -->
     <main class="container">
+
+      <section class="grid" style="margin-top: 6px;">
+
+        <!-- Balance breakdown -->
+        <div class="card">
+          <div class="label">Balance Breakdown</div>
+          <div id="balanceBreakdown" class="muted">—</div>
+
+          <!-- simple 3-part bar -->
+          <div style="height:10px; width:100%; border-radius:999px; overflow:hidden; margin-top:10px; background: rgba(0,0,0,0.06); display:flex;">
+            <div id="barChecking" style="height:100%; width:33%; background: rgba(0,0,0,0.25);"></div>
+            <div id="barSavings"  style="height:100%; width:33%; background: rgba(0,0,0,0.18);"></div>
+            <div id="barCash"     style="height:100%; width:34%; background: rgba(0,0,0,0.12);"></div>
+          </div>
+
+          <div class="muted" style="margin-top:8px; font-size: 12px;">
+            Checking / Savings / Cash
+          </div>
+        </div>
+
+        <!-- Quick insights -->
+        <div class="card">
+          <div class="label">Quick Insights</div>
+          <ul id="insightsList" class="list"></ul>
+          <div id="insightsEmpty" class="muted">No insights yet.</div>
+        </div>
+
+        <!-- Recent activity -->
+        <div class="card">
+          <div class="label">Recent Activity</div>
+          <ul id="recentList" class="list"></ul>
+          <div id="recentEmpty" class="muted">No recent transactions yet.</div>
+        </div>
+
+      </section>
+
+      <!-- =========================
+           EXISTING DASHBOARD CONTENT
+      ========================== -->
 
       <section class="grid">
         <div class="card">
