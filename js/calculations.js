@@ -118,6 +118,49 @@ function getBudgetSummaries(budgets, categoryTotals) {
     });
 }
 
+function shiftYearMonth(yearMonth, offset) {
+  const [yearStr, monthStr] = String(yearMonth).split("-");
+  const date = new Date(Number(yearStr), Number(monthStr) - 1 + offset, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatYearMonthLabel(yearMonth) {
+  const [yearStr, monthStr] = String(yearMonth).split("-");
+  const date = new Date(Number(yearStr), Number(monthStr) - 1, 1);
+  return date.toLocaleString(undefined, { month: "short", year: "numeric" });
+}
+
+function getExpenseTrend(transactions, recurringTransactions, yearMonth, months = 6) {
+  const points = [];
+
+  for (let i = months - 1; i >= 0; i--) {
+    const ym = shiftYearMonth(yearMonth, -i);
+    const summary = getMonthlySummary(transactions, ym, recurringTransactions);
+    points.push({
+      yearMonth: ym,
+      label: formatYearMonthLabel(ym),
+      expense: summary.expense,
+      income: summary.income,
+      net: summary.net
+    });
+  }
+
+  return points;
+}
+
+function getCategoryBreakdownItems(categoryTotals) {
+  const entries = Object.entries(categoryTotals || {})
+    .sort((a, b) => b[1] - a[1]);
+
+  const total = entries.reduce((sum, [, value]) => sum + Number(value || 0), 0);
+
+  return entries.map(([category, amount]) => ({
+    category,
+    amount: Number(amount || 0),
+    share: total > 0 ? (Number(amount || 0) / total) * 100 : 0
+  }));
+}
+
 /* =========================
    Account-based balances
    Supports:

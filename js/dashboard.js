@@ -577,6 +577,95 @@ function renderRecurringSection() {
   });
 }
 
+function renderTrendSection(transactions, recurringTransactions, yearMonth) {
+  const trendChartEl = document.getElementById("expenseTrendChart");
+  const trendEmptyEl = document.getElementById("expenseTrendEmpty");
+  const breakdownEl = document.getElementById("categoryBreakdownChart");
+  const breakdownEmptyEl = document.getElementById("categoryBreakdownEmpty");
+  const comparisonValueEl = document.getElementById("monthComparisonValue");
+  const comparisonTextEl = document.getElementById("monthComparisonText");
+
+  const trendPoints = getExpenseTrend(transactions, recurringTransactions, yearMonth, 6);
+  const maxExpense = Math.max(0, ...trendPoints.map((point) => point.expense));
+
+  if (trendChartEl && trendEmptyEl) {
+    trendChartEl.innerHTML = "";
+
+    if (!trendPoints.some((point) => point.expense > 0)) {
+      trendEmptyEl.classList.remove("hidden");
+    } else {
+      trendEmptyEl.classList.add("hidden");
+
+      for (const point of trendPoints) {
+        const group = document.createElement("div");
+        group.className = "trendBarGroup";
+        const height = maxExpense > 0 ? Math.max(6, Math.round((point.expense / maxExpense) * 150)) : 6;
+
+        group.innerHTML = `
+          <div class="trendBarValue">${formatMoney(point.expense)}</div>
+          <div class="trendBarTrack" aria-hidden="true">
+            <div class="trendBarFill" style="height:${height}px;"></div>
+          </div>
+          <div class="trendBarLabel">${escapeHtml(point.label)}</div>
+        `;
+
+        trendChartEl.appendChild(group);
+      }
+    }
+  }
+
+  const categoryItems = getCategoryBreakdownItems(getCategoryTotals(transactions, yearMonth, recurringTransactions)).slice(0, 5);
+
+  if (breakdownEl && breakdownEmptyEl) {
+    breakdownEl.innerHTML = "";
+
+    if (!categoryItems.length) {
+      breakdownEmptyEl.classList.remove("hidden");
+    } else {
+      breakdownEmptyEl.classList.add("hidden");
+
+      for (const item of categoryItems) {
+        const row = document.createElement("div");
+        row.className = "categoryBreakdownRow";
+        row.innerHTML = `
+          <div class="categoryBreakdownTop">
+            <span>${escapeHtml(item.category)}</span>
+            <strong>${formatMoney(item.amount)} (${Math.round(item.share)}%)</strong>
+          </div>
+          <div class="categoryBreakdownBar" aria-hidden="true">
+            <div class="categoryBreakdownFill" style="width:${Math.max(4, Math.round(item.share))}%;"></div>
+          </div>
+        `;
+        breakdownEl.appendChild(row);
+      }
+    }
+  }
+
+  const currentMonth = getMonthlySummary(transactions, yearMonth, recurringTransactions);
+  const previousYearMonth = shiftYearMonth(yearMonth, -1);
+  const previousMonth = getMonthlySummary(transactions, previousYearMonth, recurringTransactions);
+  const difference = currentMonth.expense - previousMonth.expense;
+  const percent = previousMonth.expense > 0 ? (difference / previousMonth.expense) * 100 : 0;
+
+  if (comparisonValueEl) {
+    comparisonValueEl.textContent = formatMoney(currentMonth.expense);
+  }
+
+  if (comparisonTextEl) {
+    if (previousMonth.expense === 0 && currentMonth.expense === 0) {
+      comparisonTextEl.textContent = "No expense comparison available yet.";
+    } else if (previousMonth.expense === 0) {
+      comparisonTextEl.textContent = "This is your first month with recorded expenses.";
+    } else if (difference === 0) {
+      comparisonTextEl.textContent = "Spending is flat compared with last month.";
+    } else if (difference > 0) {
+      comparisonTextEl.textContent = `${formatMoney(difference)} more spent than last month (${Math.round(percent)}% increase).`;
+    } else {
+      comparisonTextEl.textContent = `${formatMoney(Math.abs(difference))} less spent than last month (${Math.round(Math.abs(percent))}% decrease).`;
+    }
+  }
+}
+
 function initDashboard(profile) {
   dashboardProfile = profile;
   loadState();
@@ -680,6 +769,7 @@ function initDashboard(profile) {
   renderCategorySection();
   renderBudgetSection(totalsObj);
   renderRecurringSection();
+  renderTrendSection(transactions, recurringTransactions, ym);
 
   const insightsList = document.getElementById("insightsList");
   const insightsEmpty = document.getElementById("insightsEmpty");

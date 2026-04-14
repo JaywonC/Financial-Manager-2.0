@@ -300,6 +300,33 @@
 
         <section class="card">
           <div class="cardHeader">
+            <h2>Spending Trends</h2>
+            <div class="muted">See your last 6 months, this month's mix, and how this month compares with last month.</div>
+          </div>
+
+          <section class="trendGrid">
+            <div class="trendPanel">
+              <div class="label">Last 6 Months</div>
+              <div id="expenseTrendChart" class="trendChart"></div>
+              <div id="expenseTrendEmpty" class="muted hidden">Add expenses to see your spending trend.</div>
+            </div>
+
+            <div class="trendPanel">
+              <div class="label">This Month by Category</div>
+              <div id="categoryBreakdownChart" class="categoryBreakdown"></div>
+              <div id="categoryBreakdownEmpty" class="muted hidden">No expense categories to break down yet.</div>
+            </div>
+          </section>
+
+          <div class="trendCompare">
+            <div class="label">Month-over-Month</div>
+            <div id="monthComparisonValue" class="big">$0</div>
+            <div id="monthComparisonText" class="muted">No comparison available yet.</div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="cardHeader">
             <h2>Top Spending Categories (This Month)</h2>
             <div class="muted" id="monthLabel"></div>
           </div>

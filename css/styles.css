@@ -573,6 +573,102 @@ select option{
   flex-wrap:wrap;
 }
 
+.trendGrid{
+  display:grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap:16px;
+}
+
+.trendPanel{
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+  background:#fbfdff;
+}
+
+.trendChart{
+  display:grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap:12px;
+  align-items:end;
+  min-height:220px;
+  margin-top:14px;
+}
+
+.trendBarGroup{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  align-items:center;
+}
+
+.trendBarValue{
+  font-size:11px;
+  color: var(--muted);
+}
+
+.trendBarTrack{
+  width:100%;
+  max-width:42px;
+  height:150px;
+  border-radius:999px;
+  background: rgba(15, 23, 42, .08);
+  display:flex;
+  align-items:flex-end;
+  overflow:hidden;
+}
+
+.trendBarFill{
+  width:100%;
+  background: linear-gradient(180deg, #60a5fa, #2563eb);
+  border-radius:999px;
+  min-height:6px;
+}
+
+.trendBarLabel{
+  font-size:11px;
+  color: var(--muted);
+  text-align:center;
+}
+
+.categoryBreakdown{
+  display:grid;
+  gap:12px;
+  margin-top:14px;
+}
+
+.categoryBreakdownRow{
+  display:grid;
+  gap:6px;
+}
+
+.categoryBreakdownTop{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+}
+
+.categoryBreakdownBar{
+  height:10px;
+  width:100%;
+  border-radius:999px;
+  background: rgba(15, 23, 42, .08);
+  overflow:hidden;
+}
+
+.categoryBreakdownFill{
+  height:100%;
+  background: linear-gradient(90deg, #1d4ed8, #60a5fa);
+  border-radius:999px;
+}
+
+.trendCompare{
+  margin-top:16px;
+  border-top:1px solid var(--line);
+  padding-top:16px;
+}
+
 /* =========================
    DASHBOARD 2-COLUMN LAYOUT
 ========================= */
@@ -598,6 +694,10 @@ select option{
   .dashLayout{
     grid-template-columns: 1fr;
   }
+
+  .trendGrid{
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px){
@@ -608,5 +708,9 @@ select option{
   .recurringFoot{
     flex-direction:column;
     align-items:flex-start;
+  }
+
+  .trendChart{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
