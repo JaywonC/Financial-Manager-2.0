@@ -1,6 +1,7 @@
 let dashboardProfile = null;
 let categoryControlsReady = false;
 let budgetControlsReady = false;
+let goalControlsReady = false;
 let recurringControlsReady = false;
 let backupControlsReady = false;
 let analyticsControlsReady = false;
@@ -64,6 +65,7 @@ function setBudgetError(message) { setTextMessage("budgetError", message); }
 function setRecurringError(message) { setTextMessage("recurringError", message); }
 function setBackupMessage(message, isError = false) { setTextMessage("backupMessage", message, isError); }
 function setAnalyticsError(message) { setTextMessage("analyticsError", message); }
+function setGoalError(message) { setTextMessage("goalError", message); }
 
 function resetCategoryForm() {
   document.getElementById("categoryForm")?.reset();
@@ -110,6 +112,25 @@ function resetRecurringForm() {
   if (cancelBtn) cancelBtn.style.display = "none";
   populateRecurringCategoryOptions("Other");
   setRecurringError("");
+}
+
+function resetGoalForm() {
+  document.getElementById("goalForm")?.reset();
+  const editIdEl = document.getElementById("goalEditId");
+  const nameEl = document.getElementById("goalName");
+  const targetEl = document.getElementById("goalTargetAmount");
+  const savedEl = document.getElementById("goalSavedAmount");
+  const linkedEl = document.getElementById("goalLinkedAccount");
+  const submitBtn = document.getElementById("goalSubmitBtn");
+  const cancelBtn = document.getElementById("goalCancelBtn");
+  if (editIdEl) editIdEl.value = "";
+  if (nameEl) nameEl.value = "";
+  if (targetEl) targetEl.value = "";
+  if (savedEl) savedEl.value = "";
+  if (linkedEl) linkedEl.value = "none";
+  if (submitBtn) submitBtn.textContent = "Save Goal";
+  if (cancelBtn) cancelBtn.style.display = "none";
+  setGoalError("");
 }
 
 function resetAnalyticsRange() {
@@ -160,6 +181,25 @@ function buildRecurringFromForm(existingId) {
   };
 }
 
+function buildGoalFromForm(existingId) {
+  const name = String(document.getElementById("goalName")?.value || "").trim();
+  const targetAmount = Math.round((Number(document.getElementById("goalTargetAmount")?.value) || 0) * 100) / 100;
+  const savedAmount = Math.round((Number(document.getElementById("goalSavedAmount")?.value) || 0) * 100) / 100;
+  const linkedAccount = String(document.getElementById("goalLinkedAccount")?.value || "none").toLowerCase();
+
+  if (!name) return setGoalError("Please enter a goal name."), null;
+  if (!Number.isFinite(targetAmount) || targetAmount <= 0) return setGoalError("Please enter a valid target amount greater than 0."), null;
+  if (!Number.isFinite(savedAmount) || savedAmount < 0) return setGoalError("Current saved amount can't be negative."), null;
+
+  return {
+    id: existingId || makeId(),
+    name,
+    targetAmount,
+    savedAmount,
+    linkedAccount
+  };
+}
+
 function createBackupPayload() {
   return { version: 1, exportedAt: new Date().toISOString(), state: getState(), profile: loadProfile() };
 }
@@ -170,6 +210,7 @@ function validateBackupPayload(payload) {
   if (payload.state.transactions && !Array.isArray(payload.state.transactions)) throw new Error("Transactions must be an array.");
   if (payload.state.recurringTransactions && !Array.isArray(payload.state.recurringTransactions)) throw new Error("Recurring transactions must be an array.");
   if (payload.state.budgets && !Array.isArray(payload.state.budgets)) throw new Error("Budgets must be an array.");
+  if (payload.state.goals && !Array.isArray(payload.state.goals)) throw new Error("Goals must be an array.");
   if (payload.state.categories && !Array.isArray(payload.state.categories)) throw new Error("Categories must be an array.");
   if (payload.profile != null && typeof payload.profile !== "object") throw new Error("Profile data must be an object.");
 }
@@ -202,6 +243,7 @@ async function importBackupFile(file) {
     }
     resetCategoryForm();
     resetBudgetForm();
+    resetGoalForm();
     resetRecurringForm();
     setBackupMessage("Backup imported successfully.");
   } catch (error) {
@@ -255,6 +297,28 @@ function startEditRecurring(id) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+function startEditGoal(id) {
+  const goal = (getState().goals || []).find((item) => item.id === id);
+  if (!goal) return;
+  const editIdEl = document.getElementById("goalEditId");
+  const nameEl = document.getElementById("goalName");
+  const targetEl = document.getElementById("goalTargetAmount");
+  const savedEl = document.getElementById("goalSavedAmount");
+  const linkedEl = document.getElementById("goalLinkedAccount");
+  const submitBtn = document.getElementById("goalSubmitBtn");
+  const cancelBtn = document.getElementById("goalCancelBtn");
+
+  if (editIdEl) editIdEl.value = goal.id;
+  if (nameEl) nameEl.value = goal.name || "";
+  if (targetEl) targetEl.value = goal.targetAmount;
+  if (savedEl) savedEl.value = goal.savedAmount;
+  if (linkedEl) linkedEl.value = goal.linkedAccount || "none";
+  if (submitBtn) submitBtn.textContent = "Save Changes";
+  if (cancelBtn) cancelBtn.style.display = "inline-flex";
+  setGoalError("");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 function deleteBudget(id) {
   setBudgets((getState().budgets || []).filter((budget) => budget.id !== id));
   if (document.getElementById("budgetEditId")?.value === id) resetBudgetForm();
@@ -264,6 +328,12 @@ function deleteBudget(id) {
 function deleteRecurring(id) {
   saveRecurringUserTransactions(getRecurringUserTransactions().filter((tx) => tx.id !== id));
   if (document.getElementById("recurringEditId")?.value === id) resetRecurringForm();
+  initDashboard(dashboardProfile);
+}
+
+function deleteGoal(id) {
+  setGoals((getState().goals || []).filter((goal) => goal.id !== id));
+  if (document.getElementById("goalEditId")?.value === id) resetGoalForm();
   initDashboard(dashboardProfile);
 }
 
@@ -318,6 +388,28 @@ function setupBudgetControls() {
   });
   cancelBtn?.addEventListener("click", resetBudgetForm);
   budgetControlsReady = true;
+}
+
+function setupGoalControls() {
+  if (goalControlsReady) return;
+  const form = document.getElementById("goalForm");
+  const cancelBtn = document.getElementById("goalCancelBtn");
+  const editIdEl = document.getElementById("goalEditId");
+
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    setGoalError("");
+    const existingId = editIdEl?.value || "";
+    const nextGoal = buildGoalFromForm(existingId);
+    if (!nextGoal) return;
+    const goals = [...(getState().goals || [])];
+    setGoals(existingId ? goals.map((goal) => (goal.id === existingId ? nextGoal : goal)) : goals.concat(nextGoal));
+    resetGoalForm();
+    initDashboard(dashboardProfile);
+  });
+
+  cancelBtn?.addEventListener("click", resetGoalForm);
+  goalControlsReady = true;
 }
 
 function setupRecurringControls() {
@@ -501,6 +593,54 @@ function renderRecurringSection() {
   listEl.querySelectorAll("button[data-recurring-delete]").forEach((btn) => btn.addEventListener("click", () => deleteRecurring(btn.dataset.recurringDelete)));
 }
 
+function renderGoalSection(accountBalances, monthlySurplus) {
+  const listEl = document.getElementById("goalList");
+  const emptyEl = document.getElementById("goalEmpty");
+  if (!listEl || !emptyEl) return;
+
+  const summaries = getGoalProgressSummaries(getState().goals, accountBalances, monthlySurplus);
+  listEl.innerHTML = "";
+  emptyEl.classList.toggle("hidden", summaries.length > 0);
+
+  for (const goal of summaries) {
+    const linkedLabel = goal.linkedAccount !== "none"
+      ? `Linked to ${escapeHtml(goal.linkedAccount)}`
+      : "Manual saved amount";
+    const estimateText = goal.estimatedMonths == null
+      ? "No estimate available yet."
+      : goal.estimatedMonths <= 0
+        ? "Goal reached."
+        : `${goal.estimatedMonths.toFixed(1)} months at your current surplus.`;
+
+    const card = document.createElement("div");
+    card.className = "goalCard";
+    card.innerHTML = `
+      <div class="goalHeader">
+        <div class="goalMeta">
+          <h3>${escapeHtml(goal.name)}</h3>
+          <div class="muted">Target ${formatMoney(goal.targetAmount)} · Current ${formatMoney(goal.currentAmount)}</div>
+          <div class="muted">${linkedLabel}</div>
+        </div>
+        <div><strong>${Math.round(goal.percentComplete)}%</strong></div>
+      </div>
+      <div class="goalBar" aria-hidden="true">
+        <div class="goalBarFill" style="width:${Math.max(4, Math.min(100, Math.round(goal.percentComplete)))}%;"></div>
+      </div>
+      <div class="goalFoot">
+        <div class="muted">${formatMoney(goal.remaining)} remaining · ${estimateText}</div>
+        <div class="budgetBtns">
+          <button class="btn secondary" data-goal-edit="${goal.id}" type="button">Edit</button>
+          <button class="btn" data-goal-delete="${goal.id}" type="button">Delete</button>
+        </div>
+      </div>
+    `;
+    listEl.appendChild(card);
+  }
+
+  listEl.querySelectorAll("button[data-goal-edit]").forEach((btn) => btn.addEventListener("click", () => startEditGoal(btn.dataset.goalEdit)));
+  listEl.querySelectorAll("button[data-goal-delete]").forEach((btn) => btn.addEventListener("click", () => deleteGoal(btn.dataset.goalDelete)));
+}
+
 function renderTrendSection(transactions, recurringTransactions, yearMonth) {
   const trendChartEl = document.getElementById("expenseTrendChart");
   const trendEmptyEl = document.getElementById("expenseTrendEmpty");
@@ -634,6 +774,7 @@ function initDashboard(profile) {
   loadState();
   setupCategoryControls();
   setupBudgetControls();
+  setupGoalControls();
   setupRecurringControls();
   setupBackupControls();
   setupAnalyticsControls();
@@ -701,8 +842,13 @@ function initDashboard(profile) {
   if (netEl) netEl.textContent = formatMoney(net);
 
   const totalsObj = getCategoryTotals(transactions, ym, recurringTransactions);
+  const monthlyIncome = Number(profile?.monthly?.income) || 0;
+  const monthlyFixedExpenses = getRecurringFixedExpenses()
+    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  const monthlySurplus = monthlyIncome - monthlyFixedExpenses;
   renderCategorySection();
   renderBudgetSection(totalsObj);
+  renderGoalSection(acctBalances, monthlySurplus);
   renderRecurringSection();
   renderTrendSection(transactions, recurringTransactions, ym);
   renderAnalyticsSection(transactions, recurringTransactions);

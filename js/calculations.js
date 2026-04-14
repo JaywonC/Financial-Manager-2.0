@@ -234,6 +234,27 @@ function getAnalyticsSummary(transactionsInRange) {
   };
 }
 
+function getGoalProgressSummaries(goals, accountBalances, monthlySurplus) {
+  return (goals || []).map((goal) => {
+    const linkedAccount = goal.linkedAccount || "none";
+    const currentAmount = linkedAccount !== "none"
+      ? Number(accountBalances?.[linkedAccount] || 0)
+      : Number(goal.savedAmount || 0);
+    const targetAmount = Number(goal.targetAmount || 0);
+    const remaining = Math.max(0, targetAmount - currentAmount);
+    const percentComplete = targetAmount > 0 ? Math.min(100, (currentAmount / targetAmount) * 100) : 0;
+    const estimatedMonths = monthlySurplus > 0 ? remaining / monthlySurplus : null;
+
+    return {
+      ...goal,
+      currentAmount,
+      remaining,
+      percentComplete,
+      estimatedMonths
+    };
+  }).sort((a, b) => a.remaining - b.remaining);
+}
+
 /* =========================
    Account-based balances
    Supports:

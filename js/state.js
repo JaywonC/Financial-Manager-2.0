@@ -6,6 +6,7 @@ function createDefaultState() {
     transactions: [],
     recurringTransactions: [],
     budgets: [],
+    goals: [],
     categories: [],
     migrations: {
       fixedExpensesToRecurring: false
@@ -40,6 +41,26 @@ function normalizeBudgetItem(item) {
     id: item.id || makeId(),
     category: String(item.category || "Other").trim() || "Other",
     amount
+  };
+}
+
+function normalizeGoalItem(item) {
+  if (!item || typeof item !== "object") return null;
+
+  const targetAmount = Math.round((Number(item.targetAmount) || 0) * 100) / 100;
+  const savedAmount = Math.round((Number(item.savedAmount) || 0) * 100) / 100;
+  if (!Number.isFinite(targetAmount) || targetAmount <= 0) return null;
+  if (!Number.isFinite(savedAmount) || savedAmount < 0) return null;
+
+  const linkedAccount = String(item.linkedAccount || "none").toLowerCase();
+  const normalizedLinkedAccount = ["checking", "savings", "cash"].includes(linkedAccount) ? linkedAccount : "none";
+
+  return {
+    id: item.id || makeId(),
+    name: String(item.name || "").trim() || "Savings goal",
+    targetAmount,
+    savedAmount,
+    linkedAccount: normalizedLinkedAccount
   };
 }
 
@@ -85,6 +106,7 @@ function migrateLegacyFixedExpenses(parsedState) {
     transactions: Array.isArray(parsedState?.transactions) ? parsedState.transactions : [],
     recurringTransactions: Array.isArray(parsedState?.recurringTransactions) ? parsedState.recurringTransactions : [],
     budgets: Array.isArray(parsedState?.budgets) ? parsedState.budgets : [],
+    goals: Array.isArray(parsedState?.goals) ? parsedState.goals : [],
     categories: Array.isArray(parsedState?.categories) ? parsedState.categories : [],
     migrations: {
       fixedExpensesToRecurring: Boolean(parsedState?.migrations?.fixedExpensesToRecurring)
@@ -96,6 +118,9 @@ function migrateLegacyFixedExpenses(parsedState) {
     .filter(Boolean);
   nextState.budgets = nextState.budgets
     .map(normalizeBudgetItem)
+    .filter(Boolean);
+  nextState.goals = nextState.goals
+    .map(normalizeGoalItem)
     .filter(Boolean);
   nextState.categories = nextState.categories
     .map(normalizeCategoryItem)
@@ -168,6 +193,7 @@ function replaceState(nextState) {
     transactions: Array.isArray(nextState?.transactions) ? nextState.transactions : [],
     recurringTransactions: Array.isArray(nextState?.recurringTransactions) ? nextState.recurringTransactions : [],
     budgets: Array.isArray(nextState?.budgets) ? nextState.budgets : [],
+    goals: Array.isArray(nextState?.goals) ? nextState.goals : [],
     categories: Array.isArray(nextState?.categories) ? nextState.categories : [],
     migrations: {
       fixedExpensesToRecurring: Boolean(nextState?.migrations?.fixedExpensesToRecurring)
@@ -190,6 +216,13 @@ function setRecurringTransactions(recurringTransactions) {
 function setBudgets(budgets) {
   state.budgets = (budgets || [])
     .map(normalizeBudgetItem)
+    .filter(Boolean);
+  saveState();
+}
+
+function setGoals(goals) {
+  state.goals = (goals || [])
+    .map(normalizeGoalItem)
     .filter(Boolean);
   saveState();
 }

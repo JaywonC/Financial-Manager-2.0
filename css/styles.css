@@ -682,6 +682,66 @@ select option{
   justify-content:center;
 }
 
+.goalActions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.goalList{
+  display:grid;
+  gap:12px;
+  margin-top:16px;
+}
+
+.goalCard{
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+  background:#fbfdff;
+}
+
+.goalHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:10px;
+}
+
+.goalHeader h3{
+  margin:0;
+  font-size:16px;
+}
+
+.goalMeta{
+  display:grid;
+  gap:4px;
+}
+
+.goalBar{
+  height:10px;
+  width:100%;
+  border-radius:999px;
+  background: rgba(15, 23, 42, .08);
+  overflow:hidden;
+}
+
+.goalBarFill{
+  height:100%;
+  background: linear-gradient(90deg, #16a34a, #4ade80);
+  border-radius:999px;
+}
+
+.goalFoot{
+  margin-top:12px;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
 .analyticsActions{
   display:flex;
   gap:10px;
@@ -759,6 +819,8 @@ select option{
   .budgetCardHeader,
   .budgetFoot,
   .categoryRow,
+  .goalHeader,
+  .goalFoot,
   .recurringHeader,
   .recurringFoot{
     flex-direction:column;
