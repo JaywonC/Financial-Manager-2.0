@@ -36,6 +36,31 @@
     errorEl.style.display = message ? "block" : "none";
   }
 
+  function getCategories() {
+    return getAllCategories().filter((category) => category !== "Fixed");
+  }
+
+  function fillCategorySelect(selectEl, selectedCategory = "Other", includeAllOption = false) {
+    if (!selectEl) return;
+
+    const categories = getCategories();
+    const options = [];
+    if (includeAllOption) options.push(`<option value="all">All categories</option>`);
+
+    for (const category of categories) {
+      const selected = !includeAllOption && category === selectedCategory ? " selected" : "";
+      options.push(`<option value="${escapeHtml(category)}"${selected}>${escapeHtml(category)}</option>`);
+    }
+
+    selectEl.innerHTML = options.join("");
+
+    if (includeAllOption) {
+      selectEl.value = categories.includes(selectedCategory) ? selectedCategory : "all";
+    } else {
+      selectEl.value = categories.includes(selectedCategory) ? selectedCategory : "Other";
+    }
+  }
+
   function isEditing() {
     return Boolean(editIdEl?.value);
   }
@@ -56,7 +81,9 @@
 
     if (categoryEl) {
       categoryEl.disabled = isTransfer;
-      if (isTransfer) categoryEl.value = "Other";
+      if (!isTransfer) {
+        fillCategorySelect(categoryEl, categoryEl.value || "Other");
+      }
     }
 
     if (accountEl) accountEl.required = !isTransfer;
@@ -68,10 +95,7 @@
     form.reset();
     if (editIdEl) editIdEl.value = "";
     if (typeEl) typeEl.value = "expense";
-    if (categoryEl) {
-      categoryEl.value = "Other";
-      categoryEl.disabled = false;
-    }
+    fillCategorySelect(categoryEl, "Other");
     if (accountEl) accountEl.value = "checking";
     if (fromEl) fromEl.value = "checking";
     if (toEl) toEl.value = "savings";
@@ -107,25 +131,16 @@
         return null;
       }
 
-      return {
-        id: existingId || makeId(),
-        type: "transfer",
-        amount,
-        date,
-        fromAccount,
-        toAccount,
-        note
-      };
+      return { id: existingId || makeId(), type: "transfer", amount, date, fromAccount, toAccount, note };
     }
 
-    const account = accountEl?.value || "checking";
     return {
       id: existingId || makeId(),
       type,
       amount,
       date,
       category,
-      account,
+      account: accountEl?.value || "checking",
       note
     };
   }
@@ -135,6 +150,7 @@
 
     if (editIdEl) editIdEl.value = tx.id;
     if (typeEl) typeEl.value = tx.type;
+    fillCategorySelect(categoryEl, tx.category || "Other");
     updateTypeUI();
 
     if (amountEl) amountEl.value = tx.amount;
@@ -145,7 +161,6 @@
       if (fromEl) fromEl.value = tx.fromAccount || "checking";
       if (toEl) toEl.value = tx.toAccount || "savings";
     } else {
-      if (categoryEl) categoryEl.value = tx.category || "Other";
       if (accountEl) accountEl.value = tx.account || "checking";
     }
 
@@ -198,27 +213,7 @@
   }
 
   function populateCategoryFilter() {
-    if (!filterCategoryEl) return;
-
-    const previousValue = filterCategoryEl.value || "all";
-    const defaultCategories = ["Food", "Transport", "Shopping", "School", "Entertainment", "Other"];
-    const dynamicCategories = state.transactions
-      .filter((tx) => tx.type !== "transfer")
-      .map((tx) => tx.category || "Other");
-
-    const categories = [...new Set(defaultCategories.concat(dynamicCategories))]
-      .sort((a, b) => a.localeCompare(b));
-
-    filterCategoryEl.innerHTML = `<option value="all">All categories</option>`;
-
-    for (const category of categories) {
-      const option = document.createElement("option");
-      option.value = category;
-      option.textContent = category;
-      filterCategoryEl.appendChild(option);
-    }
-
-    filterCategoryEl.value = categories.includes(previousValue) ? previousValue : "all";
+    fillCategorySelect(filterCategoryEl, filterCategoryEl?.value || "all", true);
   }
 
   function clearFilters() {
@@ -240,45 +235,28 @@
 
     return [...state.transactions]
       .filter((tx) => {
-        if (type !== "all" && tx.type !== type) {
-          return false;
-        }
+        if (type !== "all" && tx.type !== type) return false;
 
         if (category !== "all") {
           const txCategory = tx.type === "transfer" ? "Transfer" : (tx.category || "Other");
-          if (txCategory !== category) {
-            return false;
-          }
+          if (txCategory !== category) return false;
         }
 
         if (account !== "all") {
           if (tx.type === "transfer") {
             const fromAccount = String(tx.fromAccount || "checking").toLowerCase();
             const toAccount = String(tx.toAccount || "savings").toLowerCase();
-            if (fromAccount !== account && toAccount !== account) {
-              return false;
-            }
-          } else {
-            const txAccount = String(tx.account || "checking").toLowerCase();
-            if (txAccount !== account) {
-              return false;
-            }
-          }
-        }
-
-        if (startDate && tx.date < startDate) {
-          return false;
-        }
-
-        if (endDate && tx.date > endDate) {
-          return false;
-        }
-
-        if (search) {
-          const note = String(tx.note || "").toLowerCase();
-          if (!note.includes(search)) {
+            if (fromAccount !== account && toAccount !== account) return false;
+          } else if (String(tx.account || "checking").toLowerCase() !== account) {
             return false;
           }
+        }
+
+        if (startDate && tx.date < startDate) return false;
+        if (endDate && tx.date > endDate) return false;
+
+        if (search && !String(tx.note || "").toLowerCase().includes(search)) {
+          return false;
         }
 
         return true;
@@ -292,22 +270,17 @@
     const count = document.getElementById("txCount");
     if (!tbody || !empty || !count) return;
 
+    fillCategorySelect(categoryEl, categoryEl?.value || "Other");
     populateCategoryFilter();
 
     const txs = getFilteredTransactions();
     const totalCount = state.transactions.length;
-    const showingCount = txs.length;
-
-    count.textContent = showingCount === totalCount
-      ? `${totalCount} total`
-      : `${showingCount} of ${totalCount} shown`;
+    count.textContent = txs.length === totalCount ? `${totalCount} total` : `${txs.length} of ${totalCount} shown`;
     tbody.innerHTML = "";
 
-    if (txs.length === 0) {
+    if (!txs.length) {
       empty.classList.remove("hidden");
-      empty.textContent = totalCount === 0
-        ? "No transactions yet. Add one above."
-        : "No transactions match your current filters.";
+      empty.textContent = totalCount === 0 ? "No transactions yet. Add one above." : "No transactions match your current filters.";
       return;
     }
 
@@ -316,12 +289,11 @@
 
     for (const tx of txs) {
       const tr = document.createElement("tr");
-      const pillClass = pillClassForType(tx.type);
       const categoryText = tx.type === "transfer" ? "Transfer" : (tx.category || "Other");
 
       tr.innerHTML = `
         <td>${tx.date}</td>
-        <td><span class="${pillClass}">${tx.type}</span></td>
+        <td><span class="${pillClassForType(tx.type)}">${tx.type}</span></td>
         <td>${categoryText}</td>
         <td>${prettyAccountCell(tx)}</td>
         <td>${tx.note ? escapeHtml(tx.note) : "<span class='muted'>-</span>"}</td>
@@ -355,9 +327,7 @@
     if (!nextTx) return;
 
     if (existingId) {
-      state.transactions = state.transactions.map((tx) => (
-        tx.id === existingId ? nextTx : tx
-      ));
+      state.transactions = state.transactions.map((tx) => (tx.id === existingId ? nextTx : tx));
     } else {
       state.transactions.push(nextTx);
     }
@@ -388,9 +358,7 @@
     });
   }
 
-  if (cancelBtn) {
-    cancelBtn.addEventListener("click", resetForm);
-  }
+  if (cancelBtn) cancelBtn.addEventListener("click", resetForm);
 
   resetForm();
   rerender();

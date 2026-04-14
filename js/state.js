@@ -6,6 +6,7 @@ function createDefaultState() {
     transactions: [],
     recurringTransactions: [],
     budgets: [],
+    categories: [],
     migrations: {
       fixedExpensesToRecurring: false
     }
@@ -13,6 +14,21 @@ function createDefaultState() {
 }
 
 let state = createDefaultState();
+
+function getDefaultCategories() {
+  return ["Food", "Transport", "Shopping", "School", "Entertainment", "Fixed", "Other"];
+}
+
+function normalizeCategoryName(name) {
+  const value = String(name || "").trim();
+  return value ? value.replace(/\s+/g, " ") : "";
+}
+
+function normalizeCategoryItem(name) {
+  const value = normalizeCategoryName(name);
+  if (!value) return null;
+  return value;
+}
 
 function normalizeBudgetItem(item) {
   if (!item || typeof item !== "object") return null;
@@ -69,6 +85,7 @@ function migrateLegacyFixedExpenses(parsedState) {
     transactions: Array.isArray(parsedState?.transactions) ? parsedState.transactions : [],
     recurringTransactions: Array.isArray(parsedState?.recurringTransactions) ? parsedState.recurringTransactions : [],
     budgets: Array.isArray(parsedState?.budgets) ? parsedState.budgets : [],
+    categories: Array.isArray(parsedState?.categories) ? parsedState.categories : [],
     migrations: {
       fixedExpensesToRecurring: Boolean(parsedState?.migrations?.fixedExpensesToRecurring)
     }
@@ -79,6 +96,9 @@ function migrateLegacyFixedExpenses(parsedState) {
     .filter(Boolean);
   nextState.budgets = nextState.budgets
     .map(normalizeBudgetItem)
+    .filter(Boolean);
+  nextState.categories = nextState.categories
+    .map(normalizeCategoryItem)
     .filter(Boolean);
 
   if (nextState.migrations.fixedExpensesToRecurring) {
@@ -152,4 +172,45 @@ function setBudgets(budgets) {
     .map(normalizeBudgetItem)
     .filter(Boolean);
   saveState();
+}
+
+function getAllCategories() {
+  const transactionCategories = (state.transactions || [])
+    .filter((tx) => tx.type !== "transfer")
+    .map((tx) => tx.category || "Other");
+  const budgetCategories = (state.budgets || []).map((budget) => budget.category || "Other");
+  const recurringCategories = (state.recurringTransactions || []).map((tx) => tx.category || "Other");
+
+  return [...new Set(
+    getDefaultCategories()
+      .concat(state.categories || [])
+      .concat(transactionCategories)
+      .concat(budgetCategories)
+      .concat(recurringCategories)
+      .map(normalizeCategoryItem)
+      .filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b));
+}
+
+function setCategories(categories) {
+  state.categories = [...new Set((categories || [])
+    .map(normalizeCategoryItem)
+    .filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+  saveState();
+}
+
+function isDefaultCategory(category) {
+  return getDefaultCategories().includes(normalizeCategoryItem(category));
+}
+
+function isCategoryInUse(category) {
+  const value = normalizeCategoryItem(category);
+  if (!value) return false;
+
+  const txUsed = (state.transactions || []).some((tx) => tx.type !== "transfer" && (tx.category || "Other") === value);
+  const budgetUsed = (state.budgets || []).some((budget) => (budget.category || "Other") === value);
+  const recurringUsed = (state.recurringTransactions || []).some((tx) => (tx.category || "Other") === value);
+
+  return txUsed || budgetUsed || recurringUsed;
 }

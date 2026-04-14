@@ -1,6 +1,17 @@
 let dashboardProfile = null;
+let categoryControlsReady = false;
 let budgetControlsReady = false;
 let recurringControlsReady = false;
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (match) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  }[match]));
+}
 
 function getRecurringUserTransactions() {
   return (getState().recurringTransactions || [])
@@ -14,50 +25,46 @@ function saveRecurringUserTransactions(userRecurringTransactions) {
 }
 
 function getDashboardCategories() {
-  const { transactions, budgets } = getState();
-  const defaultCategories = ["Food", "Transport", "Shopping", "School", "Entertainment", "Fixed", "Other"];
-  const transactionCategories = (transactions || [])
-    .filter((tx) => tx.type === "expense")
-    .map((tx) => tx.category || "Other");
-  const budgetCategories = (budgets || []).map((budget) => budget.category || "Other");
-  const recurringCategories = getRecurringUserTransactions().map((tx) => tx.category || "Other");
+  return getAllCategories();
+}
 
-  return [...new Set(defaultCategories.concat(transactionCategories, budgetCategories, recurringCategories))]
-    .sort((a, b) => a.localeCompare(b));
+function fillSelectWithCategories(selectEl, selectedCategory = "Other", includeAllOption = false) {
+  if (!selectEl) return;
+
+  const categories = getDashboardCategories();
+  const options = [];
+
+  if (includeAllOption) {
+    options.push(`<option value="all">All categories</option>`);
+  }
+
+  for (const category of categories) {
+    const selected = category === selectedCategory ? " selected" : "";
+    options.push(`<option value="${escapeHtml(category)}"${selected}>${escapeHtml(category)}</option>`);
+  }
+
+  selectEl.innerHTML = options.join("");
+
+  if (includeAllOption && selectedCategory === "all") {
+    selectEl.value = "all";
+  } else {
+    selectEl.value = categories.includes(selectedCategory) ? selectedCategory : (includeAllOption ? "all" : "Other");
+  }
 }
 
 function populateBudgetCategoryOptions(selectedCategory = "Other") {
-  const categoryEl = document.getElementById("budgetCategory");
-  if (!categoryEl) return;
-
-  const categories = getDashboardCategories();
-  categoryEl.innerHTML = "";
-
-  for (const category of categories) {
-    const option = document.createElement("option");
-    option.value = category;
-    option.textContent = category;
-    categoryEl.appendChild(option);
-  }
-
-  categoryEl.value = categories.includes(selectedCategory) ? selectedCategory : "Other";
+  fillSelectWithCategories(document.getElementById("budgetCategory"), selectedCategory);
 }
 
 function populateRecurringCategoryOptions(selectedCategory = "Other") {
-  const categoryEl = document.getElementById("recurringCategory");
-  if (!categoryEl) return;
+  fillSelectWithCategories(document.getElementById("recurringCategory"), selectedCategory);
+}
 
-  const categories = getDashboardCategories();
-  categoryEl.innerHTML = "";
-
-  for (const category of categories) {
-    const option = document.createElement("option");
-    option.value = category;
-    option.textContent = category;
-    categoryEl.appendChild(option);
-  }
-
-  categoryEl.value = categories.includes(selectedCategory) ? selectedCategory : "Other";
+function setCategoryError(message) {
+  const errorEl = document.getElementById("categoryError");
+  if (!errorEl) return;
+  errorEl.textContent = message || "";
+  errorEl.style.display = message ? "block" : "none";
 }
 
 function setBudgetError(message) {
@@ -72,6 +79,14 @@ function setRecurringError(message) {
   if (!errorEl) return;
   errorEl.textContent = message || "";
   errorEl.style.display = message ? "block" : "none";
+}
+
+function resetCategoryForm() {
+  const form = document.getElementById("categoryForm");
+  const inputEl = document.getElementById("categoryName");
+  if (form) form.reset();
+  if (inputEl) inputEl.value = "";
+  setCategoryError("");
 }
 
 function resetBudgetForm() {
@@ -123,7 +138,6 @@ function resetRecurringForm() {
 function buildBudgetFromForm(existingId) {
   const categoryEl = document.getElementById("budgetCategory");
   const amountEl = document.getElementById("budgetAmount");
-
   const category = String(categoryEl?.value || "").trim();
   const amount = Math.round((Number(amountEl?.value) || 0) * 100) / 100;
 
@@ -137,8 +151,7 @@ function buildBudgetFromForm(existingId) {
     return null;
   }
 
-  const { budgets } = getState();
-  const duplicate = (budgets || []).find((budget) => budget.category === category && budget.id !== existingId);
+  const duplicate = (getState().budgets || []).find((budget) => budget.category === category && budget.id !== existingId);
   if (duplicate) {
     setBudgetError("That category already has a monthly budget. Edit it instead.");
     return null;
@@ -255,8 +268,7 @@ function startEditRecurring(id) {
 }
 
 function deleteBudget(id) {
-  const nextBudgets = (getState().budgets || []).filter((budget) => budget.id !== id);
-  setBudgets(nextBudgets);
+  setBudgets((getState().budgets || []).filter((budget) => budget.id !== id));
 
   if (document.getElementById("budgetEditId")?.value === id) {
     resetBudgetForm();
@@ -266,8 +278,7 @@ function deleteBudget(id) {
 }
 
 function deleteRecurring(id) {
-  const nextRecurring = getRecurringUserTransactions().filter((tx) => tx.id !== id);
-  saveRecurringUserTransactions(nextRecurring);
+  saveRecurringUserTransactions(getRecurringUserTransactions().filter((tx) => tx.id !== id));
 
   if (document.getElementById("recurringEditId")?.value === id) {
     resetRecurringForm();
@@ -282,13 +293,53 @@ function toggleRecurringActive(id) {
   ));
   saveRecurringUserTransactions(nextRecurring);
 
-  const editingId = document.getElementById("recurringEditId")?.value;
-  if (editingId === id) {
+  if (document.getElementById("recurringEditId")?.value === id) {
     const updated = nextRecurring.find((tx) => tx.id === id);
     if (updated) startEditRecurring(updated.id);
   }
 
   initDashboard(dashboardProfile);
+}
+
+function deleteCategory(category) {
+  if (isCategoryInUse(category)) {
+    setCategoryError("That category is still in use, so it can't be deleted yet.");
+    return;
+  }
+
+  setCategories((getState().categories || []).filter((item) => item !== category));
+  setCategoryError("");
+  initDashboard(dashboardProfile);
+}
+
+function setupCategoryControls() {
+  if (categoryControlsReady) return;
+
+  const form = document.getElementById("categoryForm");
+  const inputEl = document.getElementById("categoryName");
+
+  if (form) {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const nextCategory = normalizeCategoryName(inputEl?.value || "");
+
+      if (!nextCategory) {
+        setCategoryError("Please enter a category name.");
+        return;
+      }
+
+      if (getAllCategories().some((category) => category.toLowerCase() === nextCategory.toLowerCase())) {
+        setCategoryError("That category already exists.");
+        return;
+      }
+
+      setCategories((getState().categories || []).concat(nextCategory));
+      resetCategoryForm();
+      initDashboard(dashboardProfile);
+    });
+  }
+
+  categoryControlsReady = true;
 }
 
 function setupBudgetControls() {
@@ -353,6 +404,50 @@ function setupRecurringControls() {
   recurringControlsReady = true;
 }
 
+function renderCategorySection() {
+  const listEl = document.getElementById("categoryList");
+  const emptyEl = document.getElementById("categoryEmpty");
+  if (!listEl || !emptyEl) return;
+
+  const customCategories = [...(getState().categories || [])].sort((a, b) => a.localeCompare(b));
+  listEl.innerHTML = "";
+
+  if (!customCategories.length) {
+    emptyEl.classList.remove("hidden");
+  } else {
+    emptyEl.classList.add("hidden");
+  }
+
+  const visibleCategories = getDashboardCategories();
+  for (const category of visibleCategories) {
+    const isCustom = customCategories.includes(category);
+    const row = document.createElement("div");
+    row.className = "categoryRow";
+
+    const badgeClass = isCustom ? "categoryBadge custom" : "categoryBadge";
+    const badgeLabel = isCustom ? "Custom" : "Default";
+    const usageText = isCategoryInUse(category) ? "In use" : "Not in use";
+    const deleteButton = isCustom
+      ? `<button class="btn secondary" data-category-delete="${escapeHtml(category)}" type="button">Delete</button>`
+      : "";
+
+    row.innerHTML = `
+      <div class="categoryMeta">
+        <strong>${escapeHtml(category)}</strong>
+        <span class="${badgeClass}">${badgeLabel}</span>
+        <span class="muted">${usageText}</span>
+      </div>
+      ${deleteButton}
+    `;
+
+    listEl.appendChild(row);
+  }
+
+  listEl.querySelectorAll("button[data-category-delete]").forEach((btn) => {
+    btn.addEventListener("click", () => deleteCategory(btn.dataset.categoryDelete));
+  });
+}
+
 function renderBudgetSection(categoryTotals) {
   const listEl = document.getElementById("budgetList");
   const emptyEl = document.getElementById("budgetEmpty");
@@ -373,7 +468,6 @@ function renderBudgetSection(categoryTotals) {
   for (const summary of summaries) {
     const card = document.createElement("div");
     card.className = `budgetCard${summary.isOverBudget ? " over" : ""}`;
-
     const toneClass = summary.isOverBudget ? "budgetTone over" : "budgetTone";
     const statusText = summary.isOverBudget
       ? `${formatMoney(Math.abs(summary.remaining))} over budget`
@@ -383,7 +477,7 @@ function renderBudgetSection(categoryTotals) {
     card.innerHTML = `
       <div class="budgetCardHeader">
         <div class="budgetMeta">
-          <h3>${summary.category}</h3>
+          <h3>${escapeHtml(summary.category)}</h3>
           <div class="muted">Budget ${formatMoney(summary.budget)} - Spent ${formatMoney(summary.actual)}</div>
         </div>
         <div class="${toneClass}">${statusText}</div>
@@ -448,16 +542,15 @@ function renderRecurringSection() {
     const card = document.createElement("div");
     card.className = `recurringCard${tx.active === false ? " paused" : ""}`;
     const isActive = tx.active !== false;
-    const statusLabel = isActive ? "Active" : "Paused";
 
     card.innerHTML = `
       <div class="recurringHeader">
         <div class="recurringMeta">
-          <h3>${tx.label || tx.note || "Recurring transaction"}</h3>
-          <div class="muted">${tx.type === "income" ? "Income" : "Expense"} - ${tx.category || "Other"} - ${prettyAccount(tx.account)}</div>
+          <h3>${escapeHtml(tx.label || tx.note || "Recurring transaction")}</h3>
+          <div class="muted">${tx.type === "income" ? "Income" : "Expense"} - ${escapeHtml(tx.category || "Other")} - ${prettyAccount(tx.account)}</div>
           <div class="muted">${formatMoney(tx.amount)} on day ${(tx.schedule && tx.schedule.dayOfMonth) || 1} each month, starting ${tx.startDate || todayISO()}</div>
         </div>
-        <div class="recurringStatus${isActive ? "" : " paused"}">${statusLabel}</div>
+        <div class="recurringStatus${isActive ? "" : " paused"}">${isActive ? "Active" : "Paused"}</div>
       </div>
 
       <div class="recurringFoot">
@@ -476,11 +569,9 @@ function renderRecurringSection() {
   listEl.querySelectorAll("button[data-recurring-toggle]").forEach((btn) => {
     btn.addEventListener("click", () => toggleRecurringActive(btn.dataset.recurringToggle));
   });
-
   listEl.querySelectorAll("button[data-recurring-edit]").forEach((btn) => {
     btn.addEventListener("click", () => startEditRecurring(btn.dataset.recurringEdit));
   });
-
   listEl.querySelectorAll("button[data-recurring-delete]").forEach((btn) => {
     btn.addEventListener("click", () => deleteRecurring(btn.dataset.recurringDelete));
   });
@@ -489,6 +580,7 @@ function renderRecurringSection() {
 function initDashboard(profile) {
   dashboardProfile = profile;
   loadState();
+  setupCategoryControls();
   setupBudgetControls();
   setupRecurringControls();
 
@@ -516,13 +608,8 @@ function initDashboard(profile) {
   const barChecking = document.getElementById("barChecking");
   const barSavings = document.getElementById("barSavings");
   const barCash = document.getElementById("barCash");
-
   const totalForBars = Math.max(0, Number(totalBalance) || 0);
   const pct = (x) => (totalForBars > 0 ? (Math.max(0, x) / totalForBars) * 100 : 0);
-
-  const pC = pct(acctBalances.checking);
-  const pS = pct(acctBalances.savings);
-  const pH = pct(acctBalances.cash);
 
   if (breakdownEl) {
     breakdownEl.textContent =
@@ -531,9 +618,9 @@ function initDashboard(profile) {
       `Cash ${formatMoney(acctBalances.cash)}`;
   }
 
-  if (barChecking) barChecking.style.width = `${Math.round(pC)}%`;
-  if (barSavings) barSavings.style.width = `${Math.round(pS)}%`;
-  if (barCash) barCash.style.width = `${Math.round(pH)}%`;
+  if (barChecking) barChecking.style.width = `${Math.round(pct(acctBalances.checking))}%`;
+  if (barSavings) barSavings.style.width = `${Math.round(pct(acctBalances.savings))}%`;
+  if (barCash) barCash.style.width = `${Math.round(pct(acctBalances.cash))}%`;
 
   if (totalForBars === 0) {
     if (barChecking) barChecking.style.width = "34%";
@@ -545,38 +632,28 @@ function initDashboard(profile) {
   const recentEmpty = document.getElementById("recentEmpty");
 
   if (recentList && recentEmpty) {
-    const txs = [...(transactions || [])].sort((a, b) => (a.date < b.date ? 1 : -1));
-    const recent = txs.slice(0, 5);
+    const recent = [...(transactions || [])]
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .slice(0, 5);
+
     recentList.innerHTML = "";
 
-    if (recent.length === 0) {
+    if (!recent.length) {
       recentEmpty.style.display = "block";
     } else {
       recentEmpty.style.display = "none";
 
-      const prettyAccount = (account) => {
-        const value = String(account || "checking").toLowerCase();
-        if (value === "checking") return "Checking";
-        if (value === "savings") return "Savings";
-        if (value === "cash") return "Cash";
-        return "Checking";
-      };
-
-      const accountLabelForTx = (tx) => {
-        if (tx.type === "transfer") {
-          return `${prettyAccount(tx.fromAccount)} -> ${prettyAccount(tx.toAccount)}`;
-        }
-        return prettyAccount(tx.account);
-      };
-
       for (const tx of recent) {
         const li = document.createElement("li");
+        const accountLabel = tx.type === "transfer"
+          ? `${escapeHtml(tx.fromAccount || "checking")} -> ${escapeHtml(tx.toAccount || "savings")}`
+          : escapeHtml(tx.account || "checking");
         const left = tx.type === "transfer"
-          ? `Transfer - ${accountLabelForTx(tx)}`
-          : `${tx.category || "Other"} - ${accountLabelForTx(tx)}`;
+          ? `Transfer - ${accountLabel}`
+          : `${escapeHtml(tx.category || "Other")} - ${accountLabel}`;
 
         li.innerHTML = `
-          <span>${tx.date} - ${left}</span>
+          <span>${escapeHtml(tx.date)} - ${left}</span>
           <strong>${tx.type === "income" ? "+" : tx.type === "expense" ? "-" : ""}${formatMoney(tx.amount)}</strong>
         `;
         recentList.appendChild(li);
@@ -584,15 +661,12 @@ function initDashboard(profile) {
     }
   }
 
-  const insightsList = document.getElementById("insightsList");
-  const insightsEmpty = document.getElementById("insightsEmpty");
-
   const monthly = getMonthlySummary(transactions, ym, recurringTransactions);
+  const totalExpenses = monthly.expense;
+  const net = monthly.net;
   const fixedTotal = getRecurringOccurrencesForMonth(recurringTransactions, ym)
     .filter((tx) => tx.type === "expense" && (tx.category === "Fixed" || tx.label))
     .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-  const totalExpenses = monthly.expense;
-  const net = monthly.net;
 
   const incomeEl = document.getElementById("incomeMonth");
   const expenseEl = document.getElementById("expenseMonth");
@@ -603,12 +677,15 @@ function initDashboard(profile) {
   if (netEl) netEl.textContent = formatMoney(net);
 
   const totalsObj = getCategoryTotals(transactions, ym, recurringTransactions);
+  renderCategorySection();
   renderBudgetSection(totalsObj);
   renderRecurringSection();
 
+  const insightsList = document.getElementById("insightsList");
+  const insightsEmpty = document.getElementById("insightsEmpty");
+
   if (insightsList && insightsEmpty) {
     insightsList.innerHTML = "";
-
     const insights = [];
 
     if (monthly.income === 0 && totalExpenses > 0) {
@@ -624,28 +701,14 @@ function initDashboard(profile) {
       insights.push(["Fixed expenses share", `${share}% of this month's expenses are fixed or recurring.`]);
     }
 
-    const overBudgetItems = getBudgetSummaries(getState().budgets, totalsObj)
-      .filter((item) => item.isOverBudget);
+    const overBudgetItems = getBudgetSummaries(getState().budgets, totalsObj).filter((item) => item.isOverBudget);
     if (overBudgetItems.length > 0) {
-      insights.push([
-        "Budget alert",
-        `${overBudgetItems[0].category} is ${formatMoney(Math.abs(overBudgetItems[0].remaining))} over budget.`
-      ]);
+      insights.push(["Budget alert", `${overBudgetItems[0].category} is ${formatMoney(Math.abs(overBudgetItems[0].remaining))} over budget.`]);
     }
 
     const pausedRecurring = getRecurringUserTransactions().filter((tx) => tx.active === false).length;
     if (pausedRecurring > 0) {
-      insights.push([
-        "Paused recurring items",
-        `${pausedRecurring} recurring ${pausedRecurring === 1 ? "item is" : "items are"} currently paused.`
-      ]);
-    }
-
-    if (totalExpenses > 0) {
-      const runway = totalBalance / totalExpenses;
-      if (Number.isFinite(runway)) {
-        insights.push(["Runway (rough)", `${runway.toFixed(1)} months at this month's spending.`]);
-      }
+      insights.push(["Paused recurring items", `${pausedRecurring} recurring ${pausedRecurring === 1 ? "item is" : "items are"} currently paused.`]);
     }
 
     if (insights.length === 0) {
@@ -654,7 +717,7 @@ function initDashboard(profile) {
       insightsEmpty.style.display = "none";
       for (const [title, sub] of insights.slice(0, 4)) {
         const li = document.createElement("li");
-        li.innerHTML = `<span>${title}</span><strong>${sub}</strong>`;
+        li.innerHTML = `<span>${escapeHtml(title)}</span><strong>${escapeHtml(sub)}</strong>`;
         insightsList.appendChild(li);
       }
     }
@@ -664,19 +727,16 @@ function initDashboard(profile) {
   const empty = document.getElementById("emptyTopCategories");
   if (!ul || !empty) return;
 
-  const top = Object.entries(totalsObj)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
-
+  const top = Object.entries(totalsObj).sort((a, b) => b[1] - a[1]).slice(0, 5);
   ul.innerHTML = "";
 
-  if (top.length === 0) {
+  if (!top.length) {
     empty.classList.remove("hidden");
   } else {
     empty.classList.add("hidden");
     for (const [cat, total] of top) {
       const li = document.createElement("li");
-      li.innerHTML = `<span>${cat}</span><strong>${formatMoney(total)}</strong>`;
+      li.innerHTML = `<span>${escapeHtml(cat)}</span><strong>${formatMoney(total)}</strong>`;
       ul.appendChild(li);
     }
   }

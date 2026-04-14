@@ -163,6 +163,29 @@
 
         <section class="card">
           <div class="cardHeader">
+            <h2>Categories</h2>
+            <div class="muted">Add custom categories for transactions, budgets, and recurring items.</div>
+          </div>
+
+          <form id="categoryForm" class="form">
+            <label class="wide">
+              New Category
+              <input id="categoryName" type="text" maxlength="30" placeholder="e.g. Health or Gifts" required />
+            </label>
+
+            <div class="wide categoryActions">
+              <button class="btn" type="submit">Add Category</button>
+            </div>
+
+            <p id="categoryError" class="muted wide" style="display:none; color:#b00020; margin:0;"></p>
+          </form>
+
+          <div id="categoryList" class="categoryList"></div>
+          <div id="categoryEmpty" class="muted hidden">No custom categories yet. Default categories are still available everywhere.</div>
+        </section>
+
+        <section class="card">
+          <div class="cardHeader">
             <h2>Monthly Budgets</h2>
             <div class="muted">Set category limits and compare them with this month.</div>
           </div>

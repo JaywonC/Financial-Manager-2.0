@@ -3,7 +3,7 @@ function makeId() {
 }
 
 function formatMoney(n) {
-  const val = Number(n || 0);
+  const val = Number(n || 0)
   return val.toLocaleString(undefined, { style: "currency", currency: "USD" });
 }
 

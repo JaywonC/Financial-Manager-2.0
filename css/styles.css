@@ -365,6 +365,53 @@ select option{
   flex-wrap:wrap;
 }
 
+.categoryActions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.categoryList{
+  display:grid;
+  gap:10px;
+  margin-top:16px;
+}
+
+.categoryRow{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:12px 14px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#fbfdff;
+  flex-wrap:wrap;
+}
+
+.categoryMeta{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.categoryBadge{
+  display:inline-flex;
+  align-items:center;
+  border-radius:999px;
+  padding:4px 10px;
+  font-size:11px;
+  font-weight:800;
+  background:#e2e8f0;
+  color:#475569;
+}
+
+.categoryBadge.custom{
+  background: var(--accentSoft);
+  color: var(--accent);
+}
+
 .recurringActions{
   display:flex;
   gap:10px;
@@ -556,6 +603,7 @@ select option{
 @media (max-width: 640px){
   .budgetCardHeader,
   .budgetFoot,
+  .categoryRow,
   .recurringHeader,
   .recurringFoot{
     flex-direction:column;
