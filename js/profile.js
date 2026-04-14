@@ -24,6 +24,34 @@ function saveProfile(profile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 }
 
+function getRecurringFixedExpenses() {
+  loadState();
+  return (getState().recurringTransactions || [])
+    .filter((tx) => tx.type === "expense" && tx.source === "profile-fixed-expense");
+}
+
+function buildRecurringFixedExpenses(items, existingRecurring) {
+  return items.map((item, index) => {
+    const existing = existingRecurring[index];
+    return {
+      id: existing?.id || makeId(),
+      type: "expense",
+      amount: item.amount,
+      category: "Fixed",
+      account: existing?.account || "checking",
+      note: item.name,
+      label: item.name,
+      active: true,
+      startDate: existing?.startDate || todayISO(),
+      schedule: {
+        frequency: "monthly",
+        dayOfMonth: existing?.schedule?.dayOfMonth || 1
+      },
+      source: "profile-fixed-expense"
+    };
+  });
+}
+
 function showSetup() {
   $("setupView").style.display = "block";
   $("dashboardView").style.display = "none";
@@ -85,7 +113,10 @@ function readFixedItems() {
 }
 
 function prefillFixedItems(profile) {
-  const items = profile?.monthly?.fixedItems || [];
+  const items = getRecurringFixedExpenses().map((tx) => ({
+    name: tx.label || tx.note || "Fixed expense",
+    amount: tx.amount
+  }));
   const slots = [
     { nameId: "fxName1", amtId: "fxAmt1" },
     { nameId: "fxName2", amtId: "fxAmt2" },
@@ -108,7 +139,10 @@ function renderFixedList(profile) {
   const fixedEmpty = $("fixedEmpty");
   if (!fixedList || !fixedEmpty) return;
 
-  const items = profile?.monthly?.fixedItems || [];
+  const items = getRecurringFixedExpenses().map((tx) => ({
+    name: tx.label || tx.note || "Fixed expense",
+    amount: tx.amount
+  }));
 
   fixedList.innerHTML = "";
   if (!items.length) {
@@ -162,9 +196,8 @@ function renderFromProfile(profile) {
   const cash = Number(profile?.balances?.cash) || 0;
 
   const income = Number(profile?.monthly?.income) || 0;
-
-  // ✅ fixedExpenses is now computed, but still stored on profile
-  const fixed = Number(profile?.monthly?.fixedExpenses) || 0;
+  const fixed = getRecurringFixedExpenses()
+    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
 
   const surplus = income - fixed;
   const rate = income > 0 ? Math.max(0, Math.min(1, surplus / income)) : 0;
@@ -200,9 +233,6 @@ function onSetupSubmit(e) {
   const fixedItems = readFixedItems();
   if (fixedItems === null) return;
 
-  // ✅ Compute fixed total automatically
-  const fixedExpenses = fixedItems.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
-
   if (![checking, savings, cash, income].every(Number.isFinite)) {
     setSetupError("Please enter valid numbers in all required fields.");
     return;
@@ -213,13 +243,15 @@ function onSetupSubmit(e) {
     return;
   }
 
+  const existingRecurring = getRecurringFixedExpenses();
+  const recurringFixedExpenses = buildRecurringFixedExpenses(fixedItems, existingRecurring);
+  setRecurringTransactions(recurringFixedExpenses);
+
   const profile = {
     name: name || null,
     balances: { checking, savings, cash },
     monthly: {
-      income,
-      fixedExpenses, // ✅ auto computed
-      fixedItems     // ✅ stored list
+      income
     },
     createdAt: new Date().toISOString()
   };

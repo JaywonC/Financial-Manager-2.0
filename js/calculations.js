@@ -4,6 +4,56 @@ function sumTransactions(transactions, type) {
     .reduce((acc, t) => acc + Number(t.amount || 0), 0);
 }
 
+function daysInMonth(year, monthIndex) {
+  return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+function getRecurringOccurrencesForMonth(recurringTransactions, yearMonth) {
+  if (!yearMonth) return [];
+
+  const [yearStr, monthStr] = String(yearMonth).split("-");
+  const year = Number(yearStr);
+  const monthIndex = Number(monthStr) - 1;
+  if (!Number.isInteger(year) || !Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+    return [];
+  }
+
+  const monthStart = `${yearStr}-${monthStr}-01`;
+  const monthEnd = `${yearStr}-${monthStr}-${String(daysInMonth(year, monthIndex)).padStart(2, "0")}`;
+
+  return (recurringTransactions || [])
+    .filter((tx) => tx?.active !== false)
+    .filter((tx) => tx?.schedule?.frequency === "monthly")
+    .filter((tx) => String(tx.startDate || "") <= monthEnd)
+    .map((tx) => {
+      const day = Math.min(
+        daysInMonth(year, monthIndex),
+        Math.max(1, Number(tx?.schedule?.dayOfMonth) || 1)
+      );
+      const date = `${yearStr}-${monthStr}-${String(day).padStart(2, "0")}`;
+      if (date < monthStart) return null;
+
+      return {
+        id: `${tx.id}:${date}`,
+        recurringId: tx.id,
+        isRecurringOccurrence: true,
+        type: tx.type,
+        amount: Number(tx.amount || 0),
+        date,
+        category: tx.category || "Fixed",
+        account: tx.account || "checking",
+        note: tx.note || "",
+        label: tx.label || tx.note || tx.category || "Recurring transaction"
+      };
+    })
+    .filter(Boolean);
+}
+
+function getTransactionsForMonth(transactions, recurringTransactions, yearMonth) {
+  const baseTransactions = (transactions || []).filter((t) => getYearMonth(t.date) === yearMonth);
+  return baseTransactions.concat(getRecurringOccurrencesForMonth(recurringTransactions, yearMonth));
+}
+
 /**
  * Net cashflow from income/expense ONLY.
  * Transfers should not change total net.
@@ -14,8 +64,8 @@ function getBalance(transactions) {
   return income - expense;
 }
 
-function getMonthlySummary(transactions, yearMonth) {
-  const inMonth = (transactions || []).filter(t => getYearMonth(t.date) === yearMonth);
+function getMonthlySummary(transactions, yearMonth, recurringTransactions = []) {
+  const inMonth = getTransactionsForMonth(transactions, recurringTransactions, yearMonth);
 
   // IMPORTANT: transfers are excluded from income/expense totals
   const income = sumTransactions(inMonth, "income");
@@ -23,11 +73,10 @@ function getMonthlySummary(transactions, yearMonth) {
   return { income, expense, net: income - expense };
 }
 
-function getCategoryTotals(transactions, yearMonth) {
+function getCategoryTotals(transactions, yearMonth, recurringTransactions = []) {
   // expenses only for category totals (transfers excluded)
-  const inMonth = (transactions || []).filter(
-    t => getYearMonth(t.date) === yearMonth && t.type === "expense"
-  );
+  const inMonth = getTransactionsForMonth(transactions, recurringTransactions, yearMonth)
+    .filter((t) => t.type === "expense");
 
   const totals = {};
   for (const t of inMonth) {
@@ -37,11 +86,36 @@ function getCategoryTotals(transactions, yearMonth) {
   return totals; // { Food: 123, Transport: 40, ... }
 }
 
-function getTopCategories(transactions, yearMonth, limit = 5) {
-  const totals = getCategoryTotals(transactions, yearMonth);
+function getTopCategories(transactions, yearMonth, limit = 5, recurringTransactions = []) {
+  const totals = getCategoryTotals(transactions, yearMonth, recurringTransactions);
   return Object.entries(totals)
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit); // [ [category, total], ... ]
+}
+
+function getBudgetSummaries(budgets, categoryTotals) {
+  return (budgets || [])
+    .map((budget) => {
+      const category = budget.category || "Other";
+      const budgetAmount = Number(budget.amount || 0);
+      const actual = Number(categoryTotals?.[category] || 0);
+      const remaining = budgetAmount - actual;
+      const percentUsed = budgetAmount > 0 ? (actual / budgetAmount) * 100 : (actual > 0 ? 100 : 0);
+
+      return {
+        id: budget.id,
+        category,
+        budget: budgetAmount,
+        actual,
+        remaining,
+        isOverBudget: actual > budgetAmount,
+        percentUsed
+      };
+    })
+    .sort((a, b) => {
+      if (a.isOverBudget !== b.isOverBudget) return a.isOverBudget ? -1 : 1;
+      return b.actual - a.actual;
+    });
 }
 
 /* =========================

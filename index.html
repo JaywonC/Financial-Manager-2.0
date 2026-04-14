@@ -3,14 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Atlas – Dashboard</title>
+  <title>Atlas - Dashboard</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 
 <body>
-  <!-- =========================
-       TOP NAV BAR
-  ========================== -->
   <header class="topbar">
     <h1>Atlas</h1>
     <nav class="nav">
@@ -19,9 +16,6 @@
     </nav>
   </header>
 
-  <!-- =========================
-       SETUP / ONBOARDING VIEW
-  ========================== -->
   <section id="setupView" style="display:none; max-width:720px; margin:40px auto; padding:24px;">
     <h1>Welcome to Atlas</h1>
     <p class="muted">
@@ -54,7 +48,6 @@
         <input id="setupIncome" type="number" step="0.01" required />
       </label>
 
-      <!-- ✅ Itemized fixed expenses -->
       <h3 style="margin-top:18px;">Fixed expenses (optional)</h3>
 
       <div style="display:grid; gap:10px;">
@@ -75,7 +68,7 @@
       </div>
 
       <p class="muted" style="margin-top:8px;">
-        Leave blank if you don’t have any.
+        Leave blank if you don't have any.
       </p>
 
       <button class="btn wide" type="submit">Finish Setup</button>
@@ -83,24 +76,14 @@
     </form>
   </section>
 
-  <!-- =========================
-       DASHBOARD VIEW
-  ========================== -->
   <section id="dashboardView" style="display:none;">
-
-    <!-- Profile controls -->
     <div style="display:flex; gap:10px; justify-content:flex-end; padding:12px 24px;">
       <button id="editProfileBtn" class="btn" type="button">Edit Profile</button>
       <button id="resetAtlasBtn" class="btn" type="button">Reset Atlas</button>
     </div>
 
-    <!-- ✅ NEW: 2-column layout (fixes empty middle space) -->
     <main class="container dashLayout">
-
-      <!-- LEFT COLUMN -->
       <aside class="dashLeft">
-
-        <!-- Profile summary -->
         <div style="padding:0 0 24px;">
           <h2 id="welcomeTitle"></h2>
 
@@ -113,34 +96,23 @@
           </div>
         </div>
 
-        <!-- Fixed expenses list -->
         <div style="padding:0 0 24px;">
           <h3 style="margin: 0 0 10px 0;">Fixed Expenses</h3>
           <ul id="fixedList" class="list"></ul>
           <div id="fixedEmpty" class="muted">No fixed expenses saved.</div>
         </div>
-
       </aside>
 
-      <!-- RIGHT COLUMN -->
       <section class="dashRight">
-
-        <!-- =========================
-             MIDDLE SECTION (fills empty space)
-        ========================== -->
         <section class="grid middleGrid" style="margin-top: 6px;">
-
-
-          <!-- Balance breakdown -->
           <div class="card">
             <div class="label">Balance Breakdown</div>
-            <div id="balanceBreakdown" class="muted">—</div>
+            <div id="balanceBreakdown" class="muted">-</div>
 
-            <!-- simple 3-part bar -->
             <div style="height:10px; width:100%; border-radius:999px; overflow:hidden; margin-top:10px; background: rgba(0,0,0,0.06); display:flex;">
               <div id="barChecking" style="height:100%; width:33%; background: rgba(0,0,0,0.25);"></div>
-              <div id="barSavings"  style="height:100%; width:33%; background: rgba(0,0,0,0.18);"></div>
-              <div id="barCash"     style="height:100%; width:34%; background: rgba(0,0,0,0.12);"></div>
+              <div id="barSavings" style="height:100%; width:33%; background: rgba(0,0,0,0.18);"></div>
+              <div id="barCash" style="height:100%; width:34%; background: rgba(0,0,0,0.12);"></div>
             </div>
 
             <div class="muted" style="margin-top:8px; font-size: 12px;">
@@ -148,25 +120,19 @@
             </div>
           </div>
 
-          <!-- Quick insights -->
           <div class="card">
             <div class="label">Quick Insights</div>
             <ul id="insightsList" class="list stackList"></ul>
             <div id="insightsEmpty" class="muted">No insights yet.</div>
           </div>
 
-          <!-- Recent activity -->
           <div class="card">
             <div class="label">Recent Activity</div>
             <ul id="recentList" class="list stackList"></ul>
             <div id="recentEmpty" class="muted">No recent transactions yet.</div>
           </div>
-
         </section>
 
-        <!-- =========================
-             EXISTING DASHBOARD CONTENT
-        ========================== -->
         <section class="grid">
           <div class="card">
             <div class="label">Current Balance</div>
@@ -190,9 +156,47 @@
           <div class="pageTitle">
             <h2>Dashboard</h2>
             <div class="sub">
-              Your month at a glance — balance, spending, and top categories.
+              Your month at a glance - balance, spending, budgets, and top categories.
             </div>
           </div>
+        </section>
+
+        <section class="card">
+          <div class="cardHeader">
+            <h2>Monthly Budgets</h2>
+            <div class="muted">Set category limits and compare them with this month.</div>
+          </div>
+
+          <form id="budgetForm" class="form">
+            <input id="budgetEditId" type="hidden" />
+
+            <label>
+              Category
+              <select id="budgetCategory" required>
+                <option value="Food">Food</option>
+                <option value="Transport">Transport</option>
+                <option value="Shopping">Shopping</option>
+                <option value="School">School</option>
+                <option value="Entertainment">Entertainment</option>
+                <option value="Other" selected>Other</option>
+              </select>
+            </label>
+
+            <label>
+              Monthly Budget
+              <input id="budgetAmount" type="number" step="0.01" min="0" placeholder="e.g. 300.00" required />
+            </label>
+
+            <div class="wide budgetActions">
+              <button id="budgetSubmitBtn" class="btn" type="submit">Save Budget</button>
+              <button id="budgetCancelBtn" class="btn secondary" type="button" style="display:none;">Cancel Edit</button>
+            </div>
+
+            <p id="budgetError" class="muted wide" style="display:none; color:#b00020; margin:0;"></p>
+          </form>
+
+          <div id="budgetList" class="budgetList"></div>
+          <div id="budgetEmpty" class="muted hidden">No budgets yet. Add one above to start tracking limits.</div>
         </section>
 
         <section class="card">
@@ -206,19 +210,14 @@
             No expenses yet this month.
           </div>
         </section>
-
       </section>
     </main>
   </section>
 
-  <!-- =========================
-       SCRIPTS (ORDER MATTERS)
-  ========================== -->
   <script src="js/utils.js"></script>
   <script src="js/state.js"></script>
   <script src="js/calculations.js"></script>
   <script src="js/dashboard.js"></script>
   <script src="js/profile.js"></script>
-
 </body>
 </html>

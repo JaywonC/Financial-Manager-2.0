@@ -1,196 +1,397 @@
 (function initTransactions() {
   loadState();
 
-  // Default date to today
-  const dateInput = document.getElementById("txDate");
-  if (dateInput) dateInput.value = todayISO();
-
   const form = document.getElementById("txForm");
+  if (!form) return;
 
-  // NEW UI elements
+  const titleEl = document.getElementById("txFormTitle");
+  const submitBtn = document.getElementById("txSubmitBtn");
+  const cancelBtn = document.getElementById("txCancelBtn");
+  const errorEl = document.getElementById("txError");
+  const editIdEl = document.getElementById("txEditId");
+
   const typeEl = document.getElementById("txType");
-
-  const singleWrap = document.getElementById("accountSingleWrap");      // account for income/expense
-  const transferWrap = document.getElementById("accountTransferWrap");  // from/to for transfer
-
+  const amountEl = document.getElementById("txAmount");
+  const dateEl = document.getElementById("txDate");
+  const categoryEl = document.getElementById("txCategory");
   const accountEl = document.getElementById("txAccount");
   const fromEl = document.getElementById("txFromAccount");
   const toEl = document.getElementById("txToAccount");
+  const noteEl = document.getElementById("txNote");
 
-  const catEl = document.getElementById("txCategory");
+  const searchEl = document.getElementById("txSearch");
+  const filterTypeEl = document.getElementById("txFilterType");
+  const filterCategoryEl = document.getElementById("txFilterCategory");
+  const filterAccountEl = document.getElementById("txFilterAccount");
+  const filterStartDateEl = document.getElementById("txFilterStartDate");
+  const filterEndDateEl = document.getElementById("txFilterEndDate");
+  const clearFiltersBtn = document.getElementById("txClearFiltersBtn");
+
+  const singleWrap = document.getElementById("accountSingleWrap");
+  const transferWrap = document.getElementById("accountTransferWrap");
+
+  function setFormError(message) {
+    if (!errorEl) return;
+    errorEl.textContent = message || "";
+    errorEl.style.display = message ? "block" : "none";
+  }
+
+  function isEditing() {
+    return Boolean(editIdEl?.value);
+  }
+
+  function updateFormMode() {
+    const editing = isEditing();
+    if (titleEl) titleEl.textContent = editing ? "Edit Transaction" : "Add Transaction";
+    if (submitBtn) submitBtn.textContent = editing ? "Save Changes" : "Add Transaction";
+    if (cancelBtn) cancelBtn.style.display = editing ? "inline-flex" : "none";
+  }
 
   function updateTypeUI() {
     const type = typeEl?.value || "expense";
     const isTransfer = type === "transfer";
 
-    // show/hide account selectors
     if (singleWrap) singleWrap.style.display = isTransfer ? "none" : "block";
     if (transferWrap) transferWrap.style.display = isTransfer ? "block" : "none";
 
-    // transfers shouldn't force a "category" meaningfully (keep it, but optional UX)
-    if (catEl) {
-      catEl.disabled = isTransfer;            // optional: disable category for transfer
-      if (isTransfer) catEl.value = "Other";  // keep clean
+    if (categoryEl) {
+      categoryEl.disabled = isTransfer;
+      if (isTransfer) categoryEl.value = "Other";
     }
 
-    // ensure required fields are correct
     if (accountEl) accountEl.required = !isTransfer;
     if (fromEl) fromEl.required = isTransfer;
     if (toEl) toEl.required = isTransfer;
   }
 
-  if (typeEl) {
-    typeEl.addEventListener("change", updateTypeUI);
-    updateTypeUI(); // run once on load
+  function resetForm() {
+    form.reset();
+    if (editIdEl) editIdEl.value = "";
+    if (typeEl) typeEl.value = "expense";
+    if (categoryEl) {
+      categoryEl.value = "Other";
+      categoryEl.disabled = false;
+    }
+    if (accountEl) accountEl.value = "checking";
+    if (fromEl) fromEl.value = "checking";
+    if (toEl) toEl.value = "savings";
+    if (dateEl) dateEl.value = todayISO();
+    setFormError("");
+    updateTypeUI();
+    updateFormMode();
   }
 
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
+  function buildTransactionFromForm(existingId) {
+    const type = typeEl?.value || "expense";
+    const amount = Math.round((Number(amountEl?.value) || 0) * 100) / 100;
+    const date = dateEl?.value || "";
+    const note = (noteEl?.value || "").trim();
+    const category = categoryEl?.value || "Other";
 
-    const type = document.getElementById("txType").value;
-    const amount = Number(document.getElementById("txAmount").value);
-    const date = document.getElementById("txDate").value;
-    const note = document.getElementById("txNote").value.trim();
+    if (!date) {
+      setFormError("Please choose a transaction date.");
+      return null;
+    }
 
-    // category only matters for income/expense
-    const category = document.getElementById("txCategory")?.value || "Other";
-
-    if (!date || !Number.isFinite(amount) || amount <= 0) return;
-
-    // ✅ Build transaction depending on type
-    let tx;
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setFormError("Please enter a valid amount greater than 0.");
+      return null;
+    }
 
     if (type === "transfer") {
       const fromAccount = fromEl?.value || "checking";
       const toAccount = toEl?.value || "savings";
 
-      // basic validation
-      if (fromAccount === toAccount) return;
+      if (fromAccount === toAccount) {
+        setFormError("Transfers need different From and To accounts.");
+        return null;
+      }
 
-      tx = {
-        id: makeId(),
+      return {
+        id: existingId || makeId(),
         type: "transfer",
-        amount: Math.round(amount * 100) / 100,
+        amount,
         date,
         fromAccount,
         toAccount,
         note
       };
-    } else {
-      // income/expense uses a single account
-      const account = accountEl?.value || "checking";
-
-      tx = {
-        id: makeId(),
-        type,
-        amount: Math.round(amount * 100) / 100,
-        date,
-        category,
-        account,
-        note
-      };
     }
 
-    state.transactions.push(tx);
-    saveState();
-    form.reset();
+    const account = accountEl?.value || "checking";
+    return {
+      id: existingId || makeId(),
+      type,
+      amount,
+      date,
+      category,
+      account,
+      note
+    };
+  }
 
-    // Keep date defaulted and defaults reasonable
-    document.getElementById("txType").value = "expense";
-    if (document.getElementById("txCategory")) {
-      document.getElementById("txCategory").value = "Other";
-      document.getElementById("txCategory").disabled = false;
-    }
-    if (accountEl) accountEl.value = "checking";
-    if (fromEl) fromEl.value = "checking";
-    if (toEl) toEl.value = "savings";
-    document.getElementById("txDate").value = todayISO();
+  function startEditTransaction(tx) {
+    if (!tx) return;
 
+    if (editIdEl) editIdEl.value = tx.id;
+    if (typeEl) typeEl.value = tx.type;
     updateTypeUI();
-    rerender();
-  });
+
+    if (amountEl) amountEl.value = tx.amount;
+    if (dateEl) dateEl.value = tx.date;
+    if (noteEl) noteEl.value = tx.note || "";
+
+    if (tx.type === "transfer") {
+      if (fromEl) fromEl.value = tx.fromAccount || "checking";
+      if (toEl) toEl.value = tx.toAccount || "savings";
+    } else {
+      if (categoryEl) categoryEl.value = tx.category || "Other";
+      if (accountEl) accountEl.value = tx.account || "checking";
+    }
+
+    setFormError("");
+    updateFormMode();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   function deleteTx(id) {
-    state.transactions = state.transactions.filter(t => t.id !== id);
+    state.transactions = state.transactions.filter((t) => t.id !== id);
     saveState();
+
+    if (editIdEl?.value === id) {
+      resetForm();
+    }
+
     rerender();
   }
 
-  function prettyAccount(a) {
-    if (!a) return "Checking";
-    const x = String(a).toLowerCase();
-    if (x === "checking") return "Checking";
-    if (x === "savings") return "Savings";
-    if (x === "cash") return "Cash";
+  function prettyAccount(account) {
+    if (!account) return "Checking";
+    const value = String(account).toLowerCase();
+    if (value === "checking") return "Checking";
+    if (value === "savings") return "Savings";
+    if (value === "cash") return "Cash";
     return "Checking";
   }
 
-  function prettyAccountCell(t) {
-    // For transfers show "From → To"
-    if (t.type === "transfer") {
-      return `${prettyAccount(t.fromAccount)} → ${prettyAccount(t.toAccount)}`;
+  function prettyAccountCell(tx) {
+    if (tx.type === "transfer") {
+      return `${prettyAccount(tx.fromAccount)} -> ${prettyAccount(tx.toAccount)}`;
     }
-    // For income/expense show single account
-    return prettyAccount(t.account);
+    return prettyAccount(tx.account);
   }
 
   function pillClassForType(type) {
     if (type === "income") return "pill income";
     if (type === "expense") return "pill expense";
-    if (type === "transfer") return "pill"; // neutral
     return "pill";
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (match) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    }[match]));
+  }
+
+  function populateCategoryFilter() {
+    if (!filterCategoryEl) return;
+
+    const previousValue = filterCategoryEl.value || "all";
+    const defaultCategories = ["Food", "Transport", "Shopping", "School", "Entertainment", "Other"];
+    const dynamicCategories = state.transactions
+      .filter((tx) => tx.type !== "transfer")
+      .map((tx) => tx.category || "Other");
+
+    const categories = [...new Set(defaultCategories.concat(dynamicCategories))]
+      .sort((a, b) => a.localeCompare(b));
+
+    filterCategoryEl.innerHTML = `<option value="all">All categories</option>`;
+
+    for (const category of categories) {
+      const option = document.createElement("option");
+      option.value = category;
+      option.textContent = category;
+      filterCategoryEl.appendChild(option);
+    }
+
+    filterCategoryEl.value = categories.includes(previousValue) ? previousValue : "all";
+  }
+
+  function clearFilters() {
+    if (searchEl) searchEl.value = "";
+    if (filterTypeEl) filterTypeEl.value = "all";
+    if (filterCategoryEl) filterCategoryEl.value = "all";
+    if (filterAccountEl) filterAccountEl.value = "all";
+    if (filterStartDateEl) filterStartDateEl.value = "";
+    if (filterEndDateEl) filterEndDateEl.value = "";
+  }
+
+  function getFilteredTransactions() {
+    const search = (searchEl?.value || "").trim().toLowerCase();
+    const type = filterTypeEl?.value || "all";
+    const category = filterCategoryEl?.value || "all";
+    const account = filterAccountEl?.value || "all";
+    const startDate = filterStartDateEl?.value || "";
+    const endDate = filterEndDateEl?.value || "";
+
+    return [...state.transactions]
+      .filter((tx) => {
+        if (type !== "all" && tx.type !== type) {
+          return false;
+        }
+
+        if (category !== "all") {
+          const txCategory = tx.type === "transfer" ? "Transfer" : (tx.category || "Other");
+          if (txCategory !== category) {
+            return false;
+          }
+        }
+
+        if (account !== "all") {
+          if (tx.type === "transfer") {
+            const fromAccount = String(tx.fromAccount || "checking").toLowerCase();
+            const toAccount = String(tx.toAccount || "savings").toLowerCase();
+            if (fromAccount !== account && toAccount !== account) {
+              return false;
+            }
+          } else {
+            const txAccount = String(tx.account || "checking").toLowerCase();
+            if (txAccount !== account) {
+              return false;
+            }
+          }
+        }
+
+        if (startDate && tx.date < startDate) {
+          return false;
+        }
+
+        if (endDate && tx.date > endDate) {
+          return false;
+        }
+
+        if (search) {
+          const note = String(tx.note || "").toLowerCase();
+          if (!note.includes(search)) {
+            return false;
+          }
+        }
+
+        return true;
+      })
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
   }
 
   function rerender() {
     const tbody = document.getElementById("txTbody");
     const empty = document.getElementById("emptyTx");
     const count = document.getElementById("txCount");
+    if (!tbody || !empty || !count) return;
 
-    const txs = [...state.transactions].sort((a, b) => (a.date < b.date ? 1 : -1));
+    populateCategoryFilter();
 
-    count.textContent = `${txs.length} total`;
+    const txs = getFilteredTransactions();
+    const totalCount = state.transactions.length;
+    const showingCount = txs.length;
+
+    count.textContent = showingCount === totalCount
+      ? `${totalCount} total`
+      : `${showingCount} of ${totalCount} shown`;
     tbody.innerHTML = "";
 
     if (txs.length === 0) {
       empty.classList.remove("hidden");
+      empty.textContent = totalCount === 0
+        ? "No transactions yet. Add one above."
+        : "No transactions match your current filters.";
       return;
     }
+
     empty.classList.add("hidden");
+    empty.textContent = "No transactions yet. Add one above.";
 
-    for (const t of txs) {
+    for (const tx of txs) {
       const tr = document.createElement("tr");
-      const pillClass = pillClassForType(t.type);
-
-      // category: for transfers show "Transfer"
-      const catText = t.type === "transfer" ? "Transfer" : (t.category || "Other");
+      const pillClass = pillClassForType(tx.type);
+      const categoryText = tx.type === "transfer" ? "Transfer" : (tx.category || "Other");
 
       tr.innerHTML = `
-        <td>${t.date}</td>
-        <td><span class="${pillClass}">${t.type}</span></td>
-        <td>${catText}</td>
-        <td>${prettyAccountCell(t)}</td>
-        <td>${t.note ? escapeHtml(t.note) : "<span class='muted'>—</span>"}</td>
-        <td class="right">${formatMoney(t.amount)}</td>
-        <td class="right"><button class="btn" data-del="${t.id}" type="button">Delete</button></td>
+        <td>${tx.date}</td>
+        <td><span class="${pillClass}">${tx.type}</span></td>
+        <td>${categoryText}</td>
+        <td>${prettyAccountCell(tx)}</td>
+        <td>${tx.note ? escapeHtml(tx.note) : "<span class='muted'>-</span>"}</td>
+        <td class="right">${formatMoney(tx.amount)}</td>
+        <td class="right">
+          <button class="btn secondary" data-edit="${tx.id}" type="button">Edit</button>
+          <button class="btn" data-del="${tx.id}" type="button">Delete</button>
+        </td>
       `;
       tbody.appendChild(tr);
     }
 
-    tbody.querySelectorAll("button[data-del]").forEach(btn => {
+    tbody.querySelectorAll("button[data-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const tx = state.transactions.find((item) => item.id === btn.dataset.edit);
+        startEditTransaction(tx);
+      });
+    });
+
+    tbody.querySelectorAll("button[data-del]").forEach((btn) => {
       btn.addEventListener("click", () => deleteTx(btn.dataset.del));
     });
   }
 
-  // small helper to prevent HTML injection in notes
-  function escapeHtml(str) {
-    return str.replace(/[&<>"']/g, (m) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    }[m]));
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    setFormError("");
+
+    const existingId = editIdEl?.value || "";
+    const nextTx = buildTransactionFromForm(existingId);
+    if (!nextTx) return;
+
+    if (existingId) {
+      state.transactions = state.transactions.map((tx) => (
+        tx.id === existingId ? nextTx : tx
+      ));
+    } else {
+      state.transactions.push(nextTx);
+    }
+
+    saveState();
+    resetForm();
+    rerender();
+  });
+
+  if (typeEl) {
+    typeEl.addEventListener("change", () => {
+      setFormError("");
+      updateTypeUI();
+    });
   }
 
+  [searchEl, filterTypeEl, filterCategoryEl, filterAccountEl, filterStartDateEl, filterEndDateEl]
+    .filter(Boolean)
+    .forEach((el) => {
+      el.addEventListener("input", rerender);
+      el.addEventListener("change", rerender);
+    });
+
+  if (clearFiltersBtn) {
+    clearFiltersBtn.addEventListener("click", () => {
+      clearFilters();
+      rerender();
+    });
+  }
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", resetForm);
+  }
+
+  resetForm();
   rerender();
 })();

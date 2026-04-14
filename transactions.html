@@ -17,9 +17,11 @@
 
   <main class="container">
     <section class="card">
-      <h2>Add Transaction</h2>
+      <h2 id="txFormTitle">Add Transaction</h2>
 
       <form id="txForm" class="form">
+        <input id="txEditId" type="hidden" />
+
         <label>
           Type
           <select id="txType" required>
@@ -87,7 +89,11 @@
           <input id="txNote" type="text" maxlength="80" placeholder="e.g. Chipotle after practice" />
         </label>
 
-        <button class="btn wide" type="submit">Add</button>
+        <div class="wide" style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button id="txSubmitBtn" class="btn" type="submit">Add Transaction</button>
+          <button id="txCancelBtn" class="btn secondary" type="button" style="display:none;">Cancel Edit</button>
+        </div>
+        <p id="txError" class="muted wide" style="display:none; color:#b00020; margin:0;"></p>
       </form>
     </section>
 
@@ -102,6 +108,54 @@
       <div class="cardHeader">
         <h2>Transactions</h2>
         <div class="muted" id="txCount"></div>
+      </div>
+
+      <div class="filterBar" aria-label="Transaction filters">
+        <label>
+          Search Notes
+          <input id="txSearch" type="text" placeholder="Search notes..." />
+        </label>
+
+        <label>
+          Type
+          <select id="txFilterType">
+            <option value="all" selected>All types</option>
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+            <option value="transfer">Transfer</option>
+          </select>
+        </label>
+
+        <label>
+          Category
+          <select id="txFilterCategory">
+            <option value="all" selected>All categories</option>
+          </select>
+        </label>
+
+        <label>
+          Account
+          <select id="txFilterAccount">
+            <option value="all" selected>All accounts</option>
+            <option value="checking">Checking</option>
+            <option value="savings">Savings</option>
+            <option value="cash">Cash</option>
+          </select>
+        </label>
+
+        <label>
+          Start Date
+          <input id="txFilterStartDate" type="date" />
+        </label>
+
+        <label>
+          End Date
+          <input id="txFilterEndDate" type="date" />
+        </label>
+
+        <div class="filterActions">
+          <button id="txClearFiltersBtn" class="btn secondary" type="button">Clear Filters</button>
+        </div>
       </div>
 
       <div class="tableWrap">
