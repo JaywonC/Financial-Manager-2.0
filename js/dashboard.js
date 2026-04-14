@@ -5,6 +5,7 @@ let goalControlsReady = false;
 let recurringControlsReady = false;
 let backupControlsReady = false;
 let analyticsControlsReady = false;
+let reportControlsReady = false;
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (match) => ({
@@ -66,6 +67,7 @@ function setRecurringError(message) { setTextMessage("recurringError", message);
 function setBackupMessage(message, isError = false) { setTextMessage("backupMessage", message, isError); }
 function setAnalyticsError(message) { setTextMessage("analyticsError", message); }
 function setGoalError(message) { setTextMessage("goalError", message); }
+function setReportError(message) { setTextMessage("reportError", message); }
 
 function resetCategoryForm() {
   document.getElementById("categoryForm")?.reset();
@@ -139,6 +141,12 @@ function resetAnalyticsRange() {
   if (endEl) endEl.value = todayISO();
   if (startEl) startEl.value = shiftYearMonth(currentYearMonth(), -1) + "-01";
   setAnalyticsError("");
+}
+
+function resetReportMonth() {
+  const monthEl = document.getElementById("reportMonth");
+  if (monthEl) monthEl.value = currentYearMonth();
+  setReportError("");
 }
 
 function buildBudgetFromForm(existingId) {
@@ -473,6 +481,29 @@ function setupAnalyticsControls() {
   analyticsControlsReady = true;
 }
 
+function setupReportControls() {
+  if (reportControlsReady) return;
+  const monthEl = document.getElementById("reportMonth");
+  const resetBtn = document.getElementById("reportResetBtn");
+  const printBtn = document.getElementById("reportPrintBtn");
+
+  monthEl?.addEventListener("input", () => {
+    setReportError("");
+    initDashboard(dashboardProfile);
+  });
+  monthEl?.addEventListener("change", () => {
+    setReportError("");
+    initDashboard(dashboardProfile);
+  });
+  resetBtn?.addEventListener("click", () => {
+    resetReportMonth();
+    initDashboard(dashboardProfile);
+  });
+  printBtn?.addEventListener("click", () => window.print());
+
+  reportControlsReady = true;
+}
+
 function renderCategorySection() {
   const listEl = document.getElementById("categoryList");
   const emptyEl = document.getElementById("categoryEmpty");
@@ -718,6 +749,8 @@ function renderAnalyticsSection(transactions, recurringTransactions) {
   const biggestEl = document.getElementById("analyticsBiggestCategory");
   const accountListEl = document.getElementById("analyticsAccountList");
   const accountEmptyEl = document.getElementById("analyticsAccountEmpty");
+  const merchantListEl = document.getElementById("analyticsMerchantList");
+  const merchantEmptyEl = document.getElementById("analyticsMerchantEmpty");
   const largestListEl = document.getElementById("analyticsLargestList");
   const largestEmptyEl = document.getElementById("analyticsLargestEmpty");
 
@@ -754,6 +787,17 @@ function renderAnalyticsSection(transactions, recurringTransactions) {
     }
   }
 
+  if (merchantListEl && merchantEmptyEl) {
+    merchantListEl.innerHTML = "";
+    merchantEmptyEl.classList.toggle("hidden", summary.topMerchants.length > 0);
+
+    for (const item of summary.topMerchants) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span>${escapeHtml(item.merchant)}</span><strong>${formatMoney(item.amount)}</strong>`;
+      merchantListEl.appendChild(li);
+    }
+  }
+
   if (largestListEl && largestEmptyEl) {
     largestListEl.innerHTML = "";
     largestEmptyEl.classList.toggle("hidden", summary.largestExpenses.length > 0);
@@ -769,6 +813,123 @@ function renderAnalyticsSection(transactions, recurringTransactions) {
   }
 }
 
+function renderMonthlyReportSection(transactions, recurringTransactions, accountBalances, monthlySurplus) {
+  const monthEl = document.getElementById("reportMonth");
+  const titleEl = document.getElementById("reportTitle");
+  const incomeEl = document.getElementById("reportIncome");
+  const expenseEl = document.getElementById("reportExpense");
+  const netEl = document.getElementById("reportNet");
+  const categoriesEl = document.getElementById("reportTopCategories");
+  const categoriesEmptyEl = document.getElementById("reportTopCategoriesEmpty");
+  const merchantsEl = document.getElementById("reportTopMerchants");
+  const merchantsEmptyEl = document.getElementById("reportTopMerchantsEmpty");
+  const accountsEl = document.getElementById("reportAccounts");
+  const accountsEmptyEl = document.getElementById("reportAccountsEmpty");
+  const budgetsEl = document.getElementById("reportBudgets");
+  const budgetsEmptyEl = document.getElementById("reportBudgetsEmpty");
+  const goalsEl = document.getElementById("reportGoals");
+  const goalsEmptyEl = document.getElementById("reportGoalsEmpty");
+
+  const reportMonth = monthEl?.value || currentYearMonth();
+  if (!/^\d{4}-\d{2}$/.test(reportMonth)) {
+    setReportError("Please choose a valid report month.");
+    return;
+  }
+
+  setReportError("");
+
+  const report = getMonthlyReportData({
+    yearMonth: reportMonth,
+    transactions,
+    recurringTransactions,
+    budgets: getState().budgets || [],
+    goals: getState().goals || [],
+    accountBalances,
+    monthlySurplus
+  });
+
+  if (titleEl) titleEl.textContent = `${report.label} Report`;
+  if (incomeEl) incomeEl.textContent = formatMoney(report.monthlySummary.income);
+  if (expenseEl) expenseEl.textContent = formatMoney(report.monthlySummary.expense);
+  if (netEl) netEl.textContent = formatMoney(report.monthlySummary.net);
+
+  if (categoriesEl && categoriesEmptyEl) {
+    categoriesEl.innerHTML = "";
+    categoriesEmptyEl.classList.toggle("hidden", report.topCategories.length > 0);
+    for (const item of report.topCategories) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span>${escapeHtml(item.category)}</span><strong>${formatMoney(item.amount)} (${Math.round(item.share)}%)</strong>`;
+      categoriesEl.appendChild(li);
+    }
+  }
+
+  if (merchantsEl && merchantsEmptyEl) {
+    merchantsEl.innerHTML = "";
+    merchantsEmptyEl.classList.toggle("hidden", report.topMerchants.length > 0);
+    for (const item of report.topMerchants) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span>${escapeHtml(item.merchant)}</span><strong>${formatMoney(item.amount)}</strong>`;
+      merchantsEl.appendChild(li);
+    }
+  }
+
+  if (accountsEl && accountsEmptyEl) {
+    accountsEl.innerHTML = "";
+    accountsEmptyEl.classList.toggle("hidden", report.spendingByAccount.length > 0);
+    for (const item of report.spendingByAccount) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span>${escapeHtml(item.account)}</span><strong>${formatMoney(item.amount)}</strong>`;
+      accountsEl.appendChild(li);
+    }
+  }
+
+  if (budgetsEl && budgetsEmptyEl) {
+    budgetsEl.innerHTML = "";
+    budgetsEmptyEl.classList.toggle("hidden", report.budgetSummaries.length > 0);
+    for (const item of report.budgetSummaries) {
+      const statusText = item.isOverBudget
+        ? `${formatMoney(Math.abs(item.remaining))} over budget`
+        : `${formatMoney(item.remaining)} remaining`;
+      const card = document.createElement("div");
+      card.className = "reportItem";
+      card.innerHTML = `
+        <div class="reportItemTop">
+          <div>
+            <strong>${escapeHtml(item.category)}</strong>
+            <div class="muted">Budget ${formatMoney(item.budget)} · Spent ${formatMoney(item.actual)}</div>
+          </div>
+          <div class="muted">${statusText}</div>
+        </div>
+      `;
+      budgetsEl.appendChild(card);
+    }
+  }
+
+  if (goalsEl && goalsEmptyEl) {
+    goalsEl.innerHTML = "";
+    goalsEmptyEl.classList.toggle("hidden", report.goalSummaries.length > 0);
+    for (const goal of report.goalSummaries) {
+      const estimateText = goal.estimatedMonths == null
+        ? "No estimate yet"
+        : goal.estimatedMonths <= 0
+          ? "Goal reached"
+          : `${goal.estimatedMonths.toFixed(1)} months at current surplus`;
+      const card = document.createElement("div");
+      card.className = "reportItem";
+      card.innerHTML = `
+        <div class="reportItemTop">
+          <div>
+            <strong>${escapeHtml(goal.name)}</strong>
+            <div class="muted">${Math.round(goal.percentComplete)}% complete · ${formatMoney(goal.remaining)} remaining</div>
+          </div>
+          <div class="muted">${estimateText}</div>
+        </div>
+      `;
+      goalsEl.appendChild(card);
+    }
+  }
+}
+
 function initDashboard(profile) {
   dashboardProfile = profile;
   loadState();
@@ -778,9 +939,13 @@ function initDashboard(profile) {
   setupRecurringControls();
   setupBackupControls();
   setupAnalyticsControls();
+  setupReportControls();
 
   if (!document.getElementById("analyticsStartDate")?.value && !document.getElementById("analyticsEndDate")?.value) {
     resetAnalyticsRange();
+  }
+  if (!document.getElementById("reportMonth")?.value) {
+    resetReportMonth();
   }
 
   const { transactions, recurringTransactions } = getState();
@@ -821,7 +986,8 @@ function initDashboard(profile) {
       const accountLabel = tx.type === "transfer"
         ? `${escapeHtml(tx.fromAccount || "checking")} -> ${escapeHtml(tx.toAccount || "savings")}`
         : escapeHtml(tx.account || "checking");
-      const left = tx.type === "transfer" ? `Transfer - ${accountLabel}` : `${escapeHtml(tx.category || "Other")} - ${accountLabel}`;
+      const merchantLabel = tx.type === "transfer" ? "" : (tx.merchant ? ` - ${escapeHtml(tx.merchant)}` : "");
+      const left = tx.type === "transfer" ? `Transfer - ${accountLabel}` : `${escapeHtml(tx.category || "Other")} - ${accountLabel}${merchantLabel}`;
       li.innerHTML = `<span>${escapeHtml(tx.date)} - ${left}</span><strong>${tx.type === "income" ? "+" : tx.type === "expense" ? "-" : ""}${formatMoney(tx.amount)}</strong>`;
       recentList.appendChild(li);
     }
@@ -852,6 +1018,7 @@ function initDashboard(profile) {
   renderRecurringSection();
   renderTrendSection(transactions, recurringTransactions, ym);
   renderAnalyticsSection(transactions, recurringTransactions);
+  renderMonthlyReportSection(transactions, recurringTransactions, acctBalances, monthlySurplus);
 
   const insightsList = document.getElementById("insightsList");
   const insightsEmpty = document.getElementById("insightsEmpty");

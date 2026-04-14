@@ -64,6 +64,41 @@ function normalizeGoalItem(item) {
   };
 }
 
+function normalizeTransactionItem(tx) {
+  if (!tx || typeof tx !== "object") return null;
+
+  const type = tx.type === "income" ? "income" : tx.type === "transfer" ? "transfer" : "expense";
+  const amount = Math.round((Number(tx.amount) || 0) * 100) / 100;
+  const date = String(tx.date || "").trim();
+  const note = String(tx.note || "").trim();
+  const merchant = String(tx.merchant || tx.payee || "").trim();
+
+  if (!Number.isFinite(amount) || amount <= 0 || !date) return null;
+
+  if (type === "transfer") {
+    return {
+      id: tx.id || makeId(),
+      type,
+      amount,
+      date,
+      fromAccount: tx.fromAccount || "checking",
+      toAccount: tx.toAccount || "savings",
+      note
+    };
+  }
+
+  return {
+    id: tx.id || makeId(),
+    type,
+    amount,
+    date,
+    category: tx.category || "Other",
+    account: tx.account || "checking",
+    merchant,
+    note
+  };
+}
+
 function normalizeRecurringTransaction(tx) {
   if (!tx || typeof tx !== "object") return null;
 
@@ -115,6 +150,9 @@ function migrateLegacyFixedExpenses(parsedState) {
 
   nextState.recurringTransactions = nextState.recurringTransactions
     .map(normalizeRecurringTransaction)
+    .filter(Boolean);
+  nextState.transactions = nextState.transactions
+    .map(normalizeTransactionItem)
     .filter(Boolean);
   nextState.budgets = nextState.budgets
     .map(normalizeBudgetItem)

@@ -199,18 +199,25 @@ function getTransactionsInRange(transactions, recurringTransactions, startDate, 
 function getAnalyticsSummary(transactionsInRange) {
   const incomeTransactions = (transactionsInRange || []).filter((tx) => tx.type === "income");
   const expenseTransactions = (transactionsInRange || []).filter((tx) => tx.type === "expense");
+  const merchantTransactions = (transactionsInRange || []).filter((tx) => tx.type !== "transfer" && String(tx.merchant || "").trim());
   const income = incomeTransactions.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
   const expense = expenseTransactions.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
   const net = income - expense;
 
   const categoryTotals = {};
   const accountTotals = {};
+  const merchantTotals = {};
 
   for (const tx of expenseTransactions) {
     const category = tx.category || "Other";
     const account = normalizeAccount(tx.account);
     categoryTotals[category] = (categoryTotals[category] || 0) + (Number(tx.amount) || 0);
     accountTotals[account] = (accountTotals[account] || 0) + (Number(tx.amount) || 0);
+  }
+
+  for (const tx of merchantTransactions) {
+    const merchant = String(tx.merchant || "").trim();
+    merchantTotals[merchant] = (merchantTotals[merchant] || 0) + (Number(tx.amount) || 0);
   }
 
   const biggestCategoryEntry = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0] || null;
@@ -220,6 +227,10 @@ function getAnalyticsSummary(transactionsInRange) {
   const spendingByAccount = Object.entries(accountTotals)
     .sort((a, b) => b[1] - a[1])
     .map(([account, amount]) => ({ account, amount }));
+  const topMerchants = Object.entries(merchantTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([merchant, amount]) => ({ merchant, amount }));
   const averageExpense = expenseTransactions.length > 0 ? expense / expenseTransactions.length : 0;
 
   return {
@@ -229,6 +240,7 @@ function getAnalyticsSummary(transactionsInRange) {
     biggestCategory: biggestCategoryEntry ? { category: biggestCategoryEntry[0], amount: biggestCategoryEntry[1] } : null,
     largestExpenses,
     spendingByAccount,
+    topMerchants,
     averageExpense,
     expenseCount: expenseTransactions.length
   };
@@ -253,6 +265,39 @@ function getGoalProgressSummaries(goals, accountBalances, monthlySurplus) {
       estimatedMonths
     };
   }).sort((a, b) => a.remaining - b.remaining);
+}
+
+function getMonthlyReportData({
+  yearMonth,
+  transactions,
+  recurringTransactions,
+  budgets,
+  goals,
+  accountBalances,
+  monthlySurplus
+}) {
+  const startDate = `${yearMonth}-01`;
+  const [yearStr, monthStr] = String(yearMonth).split("-");
+  const year = Number(yearStr);
+  const monthIndex = Number(monthStr) - 1;
+  const endDate = `${yearMonth}-${String(daysInMonth(year, monthIndex)).padStart(2, "0")}`;
+
+  const monthlySummary = getMonthlySummary(transactions, yearMonth, recurringTransactions);
+  const categoryTotals = getCategoryTotals(transactions, yearMonth, recurringTransactions);
+  const analyticsSummary = getAnalyticsSummary(getTransactionsInRange(transactions, recurringTransactions, startDate, endDate));
+  const budgetSummaries = getBudgetSummaries(budgets, categoryTotals);
+  const goalSummaries = getGoalProgressSummaries(goals, accountBalances, monthlySurplus);
+
+  return {
+    yearMonth,
+    label: formatYearMonthLabel(yearMonth),
+    monthlySummary,
+    topCategories: getCategoryBreakdownItems(categoryTotals).slice(0, 5),
+    topMerchants: analyticsSummary.topMerchants,
+    spendingByAccount: analyticsSummary.spendingByAccount,
+    budgetSummaries,
+    goalSummaries
+  };
 }
 
 /* =========================

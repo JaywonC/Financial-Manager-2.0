@@ -446,9 +446,87 @@
           </section>
 
           <section class="analyticsPanel" style="margin-top:16px;">
+            <div class="label">Top Merchants / Payees</div>
+            <ul id="analyticsMerchantList" class="list"></ul>
+            <div id="analyticsMerchantEmpty" class="muted hidden">No merchant or payee data in this range.</div>
+          </section>
+
+          <section class="analyticsPanel" style="margin-top:16px;">
             <div class="label">Top 5 Largest Expenses</div>
             <ul id="analyticsLargestList" class="list"></ul>
             <div id="analyticsLargestEmpty" class="muted hidden">No expense transactions in this range.</div>
+          </section>
+        </section>
+
+        <section id="monthlyReportSection" class="card reportCard">
+          <div class="cardHeader">
+            <h2>Monthly Report</h2>
+            <div class="muted">Review one month at a time and print a clean summary.</div>
+          </div>
+
+          <form id="reportForm" class="form">
+            <label>
+              Report Month
+              <input id="reportMonth" type="month" />
+            </label>
+
+            <div class="wide analyticsActions">
+              <button id="reportResetBtn" class="btn secondary" type="button">Current Month</button>
+              <button id="reportPrintBtn" class="btn" type="button">Print Report</button>
+            </div>
+
+            <p id="reportError" class="muted wide" style="display:none; color:#b00020; margin:0;"></p>
+          </form>
+
+          <div id="reportTitle" class="reportTitle">Monthly report</div>
+
+          <section class="reportStats">
+            <div class="analyticsStat">
+              <div class="label">Income</div>
+              <div id="reportIncome" class="big">$0</div>
+            </div>
+            <div class="analyticsStat">
+              <div class="label">Expenses</div>
+              <div id="reportExpense" class="big">$0</div>
+            </div>
+            <div class="analyticsStat">
+              <div class="label">Net</div>
+              <div id="reportNet" class="big">$0</div>
+            </div>
+          </section>
+
+          <section class="reportGrid">
+            <div class="reportPanel">
+              <div class="label">Top Spending Categories</div>
+              <ul id="reportTopCategories" class="list"></ul>
+              <div id="reportTopCategoriesEmpty" class="muted hidden">No spending categories for this month.</div>
+            </div>
+
+            <div class="reportPanel">
+              <div class="label">Top Merchants / Payees</div>
+              <ul id="reportTopMerchants" class="list"></ul>
+              <div id="reportTopMerchantsEmpty" class="muted hidden">No merchant or payee data for this month.</div>
+            </div>
+          </section>
+
+          <section class="reportGrid">
+            <div class="reportPanel">
+              <div class="label">Spending By Account</div>
+              <ul id="reportAccounts" class="list"></ul>
+              <div id="reportAccountsEmpty" class="muted hidden">No account spending for this month.</div>
+            </div>
+
+            <div class="reportPanel">
+              <div class="label">Budget Performance</div>
+              <div id="reportBudgets" class="reportStack"></div>
+              <div id="reportBudgetsEmpty" class="muted hidden">No budgets set yet.</div>
+            </div>
+          </section>
+
+          <section class="reportPanel" style="margin-top:16px;">
+            <div class="label">Savings Goal Snapshot</div>
+            <div id="reportGoals" class="reportStack"></div>
+            <div id="reportGoalsEmpty" class="muted hidden">No savings goals to report yet.</div>
           </section>
         </section>
 

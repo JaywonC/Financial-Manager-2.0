@@ -17,6 +17,7 @@
   const accountEl = document.getElementById("txAccount");
   const fromEl = document.getElementById("txFromAccount");
   const toEl = document.getElementById("txToAccount");
+  const merchantEl = document.getElementById("txMerchant");
   const noteEl = document.getElementById("txNote");
 
   const searchEl = document.getElementById("txSearch");
@@ -89,6 +90,10 @@
     if (accountEl) accountEl.required = !isTransfer;
     if (fromEl) fromEl.required = isTransfer;
     if (toEl) toEl.required = isTransfer;
+    if (merchantEl) {
+      merchantEl.disabled = isTransfer;
+      if (isTransfer) merchantEl.value = "";
+    }
   }
 
   function resetForm() {
@@ -109,6 +114,7 @@
     const type = typeEl?.value || "expense";
     const amount = Math.round((Number(amountEl?.value) || 0) * 100) / 100;
     const date = dateEl?.value || "";
+    const merchant = (merchantEl?.value || "").trim();
     const note = (noteEl?.value || "").trim();
     const category = categoryEl?.value || "Other";
 
@@ -141,6 +147,7 @@
       date,
       category,
       account: accountEl?.value || "checking",
+      merchant,
       note
     };
   }
@@ -155,6 +162,7 @@
 
     if (amountEl) amountEl.value = tx.amount;
     if (dateEl) dateEl.value = tx.date;
+    if (merchantEl) merchantEl.value = tx.type === "transfer" ? "" : (tx.merchant || "");
     if (noteEl) noteEl.value = tx.note || "";
 
     if (tx.type === "transfer") {
@@ -255,7 +263,8 @@
         if (startDate && tx.date < startDate) return false;
         if (endDate && tx.date > endDate) return false;
 
-        if (search && !String(tx.note || "").toLowerCase().includes(search)) {
+        const searchSource = `${String(tx.merchant || "").toLowerCase()} ${String(tx.note || "").toLowerCase()}`;
+        if (search && !searchSource.includes(search)) {
           return false;
         }
 
@@ -296,6 +305,7 @@
         <td><span class="${pillClassForType(tx.type)}">${tx.type}</span></td>
         <td>${categoryText}</td>
         <td>${prettyAccountCell(tx)}</td>
+        <td>${tx.type === "transfer" ? "<span class='muted'>-</span>" : (tx.merchant ? escapeHtml(tx.merchant) : "<span class='muted'>-</span>")}</td>
         <td>${tx.note ? escapeHtml(tx.note) : "<span class='muted'>-</span>"}</td>
         <td class="right">${formatMoney(tx.amount)}</td>
         <td class="right">

@@ -776,6 +776,66 @@ select option{
   margin-top:16px;
 }
 
+.reportCard{
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.reportTitle{
+  margin-top:16px;
+  font-size:24px;
+  font-weight:800;
+}
+
+.reportStats{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:14px;
+  margin-top:16px;
+}
+
+.reportGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:16px;
+  margin-top:16px;
+}
+
+.reportPanel{
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+  background:#fbfdff;
+}
+
+.reportStack{
+  display:grid;
+  gap:10px;
+  margin-top:12px;
+}
+
+.reportItem{
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:12px;
+  background:#fff;
+}
+
+.reportItemTop{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+
+.reportItemTop strong{
+  display:block;
+}
+
+.reportPrintNote{
+  margin-top:8px;
+}
+
 /* =========================
    DASHBOARD 2-COLUMN LAYOUT
 ========================= */
@@ -813,6 +873,11 @@ select option{
   .analyticsDetailGrid{
     grid-template-columns: 1fr;
   }
+
+  .reportStats,
+  .reportGrid{
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px){
@@ -822,7 +887,8 @@ select option{
   .goalHeader,
   .goalFoot,
   .recurringHeader,
-  .recurringFoot{
+  .recurringFoot,
+  .reportItemTop{
     flex-direction:column;
     align-items:flex-start;
   }
@@ -833,5 +899,38 @@ select option{
 
   .analyticsGrid{
     grid-template-columns: 1fr;
+  }
+}
+
+@media print{
+  body{
+    background:#fff;
+  }
+
+  .topbar,
+  .dashLeft,
+  #reportForm,
+  .card:not(.reportCard){
+    display:none !important;
+  }
+
+  .dashLayout,
+  .dashRight{
+    display:block !important;
+  }
+
+  .reportCard{
+    border:none;
+    box-shadow:none;
+    margin:0;
+    padding:0;
+    background:#fff;
+  }
+
+  .reportPanel,
+  .analyticsStat,
+  .reportItem{
+    break-inside:avoid;
+    background:#fff;
   }
 }

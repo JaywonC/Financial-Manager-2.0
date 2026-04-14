@@ -85,6 +85,11 @@
         </div>
 
         <label class="wide">
+          Merchant / Payee (optional)
+          <input id="txMerchant" type="text" maxlength="80" placeholder="e.g. Chipotle, Amazon, Mom" />
+        </label>
+
+        <label class="wide">
           Note (optional)
           <input id="txNote" type="text" maxlength="80" placeholder="e.g. Chipotle after practice" />
         </label>
@@ -112,8 +117,8 @@
 
       <div class="filterBar" aria-label="Transaction filters">
         <label>
-          Search Notes
-          <input id="txSearch" type="text" placeholder="Search notes..." />
+          Search
+          <input id="txSearch" type="text" placeholder="Search merchant or notes..." />
         </label>
 
         <label>
@@ -166,6 +171,7 @@
               <th>Type</th>
               <th>Category</th>
               <th>Account</th>
+              <th>Merchant / Payee</th>
               <th>Note</th>
               <th class="right">Amount</th>
               <th class="right">Action</th>
