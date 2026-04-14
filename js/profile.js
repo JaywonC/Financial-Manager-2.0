@@ -245,7 +245,9 @@ function onSetupSubmit(e) {
 
   const existingRecurring = getRecurringFixedExpenses();
   const recurringFixedExpenses = buildRecurringFixedExpenses(fixedItems, existingRecurring);
-  setRecurringTransactions(recurringFixedExpenses);
+  const userRecurring = (getState().recurringTransactions || [])
+    .filter((tx) => tx.source !== "profile-fixed-expense");
+  setRecurringTransactions(recurringFixedExpenses.concat(userRecurring));
 
   const profile = {
     name: name || null,

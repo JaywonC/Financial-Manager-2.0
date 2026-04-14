@@ -201,6 +201,82 @@
 
         <section class="card">
           <div class="cardHeader">
+            <h2>Recurring Transactions</h2>
+            <div class="muted">Manage repeating income and expenses outside your profile fixed expenses.</div>
+          </div>
+
+          <form id="recurringForm" class="form">
+            <input id="recurringEditId" type="hidden" />
+
+            <label>
+              Type
+              <select id="recurringType" required>
+                <option value="expense" selected>Expense</option>
+                <option value="income">Income</option>
+              </select>
+            </label>
+
+            <label>
+              Amount
+              <input id="recurringAmount" type="number" step="0.01" min="0.01" placeholder="e.g. 75.00" required />
+            </label>
+
+            <label>
+              Category
+              <select id="recurringCategory" required>
+                <option value="Food">Food</option>
+                <option value="Transport">Transport</option>
+                <option value="Shopping">Shopping</option>
+                <option value="School">School</option>
+                <option value="Entertainment">Entertainment</option>
+                <option value="Fixed">Fixed</option>
+                <option value="Other" selected>Other</option>
+              </select>
+            </label>
+
+            <label>
+              Account
+              <select id="recurringAccount" required>
+                <option value="checking" selected>Checking</option>
+                <option value="savings">Savings</option>
+                <option value="cash">Cash</option>
+              </select>
+            </label>
+
+            <label>
+              Start Date
+              <input id="recurringStartDate" type="date" required />
+            </label>
+
+            <label>
+              Monthly Day
+              <input id="recurringDayOfMonth" type="number" min="1" max="31" step="1" placeholder="1-31" required />
+            </label>
+
+            <label class="wide">
+              Label / Note
+              <input id="recurringLabel" type="text" maxlength="80" placeholder="e.g. Gym membership or Paycheck" required />
+            </label>
+
+            <label class="recurringCheck">
+              <input id="recurringActive" type="checkbox" checked />
+              <span>Active recurring transaction</span>
+            </label>
+
+            <div class="wide recurringActions">
+              <button id="recurringSubmitBtn" class="btn" type="submit">Save Recurring</button>
+              <button id="recurringCancelBtn" class="btn secondary" type="button" style="display:none;">Cancel Edit</button>
+            </div>
+
+            <p id="recurringError" class="muted wide" style="display:none; color:#b00020; margin:0;"></p>
+          </form>
+
+          <div id="recurringList" class="recurringList"></div>
+          <div id="recurringEmpty" class="muted hidden">No recurring transactions yet. Add one above to automate future months.</div>
+        </section>
+
+        <section class="card">
+          <div class="cardHeader">
             <h2>Top Spending Categories (This Month)</h2>
             <div class="muted" id="monthLabel"></div>
           </div>
