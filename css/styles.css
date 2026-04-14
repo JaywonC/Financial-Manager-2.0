@@ -669,6 +669,19 @@ select option{
   padding-top:16px;
 }
 
+.backupActions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.backupLabel{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+
 /* =========================
    DASHBOARD 2-COLUMN LAYOUT
 ========================= */

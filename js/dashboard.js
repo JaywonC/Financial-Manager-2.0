@@ -2,6 +2,7 @@ let dashboardProfile = null;
 let categoryControlsReady = false;
 let budgetControlsReady = false;
 let recurringControlsReady = false;
+let backupControlsReady = false;
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (match) => ({
@@ -14,14 +15,12 @@ function escapeHtml(value) {
 }
 
 function getRecurringUserTransactions() {
-  return (getState().recurringTransactions || [])
-    .filter((tx) => tx.source !== "profile-fixed-expense");
+  return (getState().recurringTransactions || []).filter((tx) => tx.source !== "profile-fixed-expense");
 }
 
-function saveRecurringUserTransactions(userRecurringTransactions) {
-  const fixedExpenses = (getState().recurringTransactions || [])
-    .filter((tx) => tx.source === "profile-fixed-expense");
-  setRecurringTransactions(fixedExpenses.concat(userRecurringTransactions || []));
+function saveRecurringUserTransactions(items) {
+  const fixed = (getState().recurringTransactions || []).filter((tx) => tx.source === "profile-fixed-expense");
+  setRecurringTransactions(fixed.concat(items || []));
 }
 
 function getDashboardCategories() {
@@ -30,84 +29,63 @@ function getDashboardCategories() {
 
 function fillSelectWithCategories(selectEl, selectedCategory = "Other", includeAllOption = false) {
   if (!selectEl) return;
-
   const categories = getDashboardCategories();
   const options = [];
-
-  if (includeAllOption) {
-    options.push(`<option value="all">All categories</option>`);
-  }
-
+  if (includeAllOption) options.push(`<option value="all">All categories</option>`);
   for (const category of categories) {
     const selected = category === selectedCategory ? " selected" : "";
     options.push(`<option value="${escapeHtml(category)}"${selected}>${escapeHtml(category)}</option>`);
   }
-
   selectEl.innerHTML = options.join("");
-
-  if (includeAllOption && selectedCategory === "all") {
-    selectEl.value = "all";
-  } else {
-    selectEl.value = categories.includes(selectedCategory) ? selectedCategory : (includeAllOption ? "all" : "Other");
-  }
+  selectEl.value = includeAllOption && selectedCategory === "all"
+    ? "all"
+    : (categories.includes(selectedCategory) ? selectedCategory : (includeAllOption ? "all" : "Other"));
 }
 
-function populateBudgetCategoryOptions(selectedCategory = "Other") {
-  fillSelectWithCategories(document.getElementById("budgetCategory"), selectedCategory);
+function populateBudgetCategoryOptions(selected = "Other") {
+  fillSelectWithCategories(document.getElementById("budgetCategory"), selected);
 }
 
-function populateRecurringCategoryOptions(selectedCategory = "Other") {
-  fillSelectWithCategories(document.getElementById("recurringCategory"), selectedCategory);
+function populateRecurringCategoryOptions(selected = "Other") {
+  fillSelectWithCategories(document.getElementById("recurringCategory"), selected);
 }
 
-function setCategoryError(message) {
-  const errorEl = document.getElementById("categoryError");
-  if (!errorEl) return;
-  errorEl.textContent = message || "";
-  errorEl.style.display = message ? "block" : "none";
+function setTextMessage(id, message, isError = false) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = message || "";
+  el.style.display = message ? "block" : "none";
+  if (id === "backupMessage") el.style.color = isError ? "#b00020" : "";
 }
 
-function setBudgetError(message) {
-  const errorEl = document.getElementById("budgetError");
-  if (!errorEl) return;
-  errorEl.textContent = message || "";
-  errorEl.style.display = message ? "block" : "none";
-}
-
-function setRecurringError(message) {
-  const errorEl = document.getElementById("recurringError");
-  if (!errorEl) return;
-  errorEl.textContent = message || "";
-  errorEl.style.display = message ? "block" : "none";
-}
+function setCategoryError(message) { setTextMessage("categoryError", message); }
+function setBudgetError(message) { setTextMessage("budgetError", message); }
+function setRecurringError(message) { setTextMessage("recurringError", message); }
+function setBackupMessage(message, isError = false) { setTextMessage("backupMessage", message, isError); }
 
 function resetCategoryForm() {
-  const form = document.getElementById("categoryForm");
-  const inputEl = document.getElementById("categoryName");
-  if (form) form.reset();
-  if (inputEl) inputEl.value = "";
+  document.getElementById("categoryForm")?.reset();
+  const input = document.getElementById("categoryName");
+  if (input) input.value = "";
   setCategoryError("");
 }
 
 function resetBudgetForm() {
-  const form = document.getElementById("budgetForm");
+  document.getElementById("budgetForm")?.reset();
   const editIdEl = document.getElementById("budgetEditId");
   const amountEl = document.getElementById("budgetAmount");
   const submitBtn = document.getElementById("budgetSubmitBtn");
   const cancelBtn = document.getElementById("budgetCancelBtn");
-
-  if (form) form.reset();
   if (editIdEl) editIdEl.value = "";
   if (amountEl) amountEl.value = "";
   if (submitBtn) submitBtn.textContent = "Save Budget";
   if (cancelBtn) cancelBtn.style.display = "none";
-
   populateBudgetCategoryOptions("Other");
   setBudgetError("");
 }
 
 function resetRecurringForm() {
-  const form = document.getElementById("recurringForm");
+  document.getElementById("recurringForm")?.reset();
   const editIdEl = document.getElementById("recurringEditId");
   const typeEl = document.getElementById("recurringType");
   const amountEl = document.getElementById("recurringAmount");
@@ -118,8 +96,6 @@ function resetRecurringForm() {
   const activeEl = document.getElementById("recurringActive");
   const submitBtn = document.getElementById("recurringSubmitBtn");
   const cancelBtn = document.getElementById("recurringCancelBtn");
-
-  if (form) form.reset();
   if (editIdEl) editIdEl.value = "";
   if (typeEl) typeEl.value = "expense";
   if (amountEl) amountEl.value = "";
@@ -130,74 +106,34 @@ function resetRecurringForm() {
   if (activeEl) activeEl.checked = true;
   if (submitBtn) submitBtn.textContent = "Save Recurring";
   if (cancelBtn) cancelBtn.style.display = "none";
-
   populateRecurringCategoryOptions("Other");
   setRecurringError("");
 }
 
 function buildBudgetFromForm(existingId) {
-  const categoryEl = document.getElementById("budgetCategory");
-  const amountEl = document.getElementById("budgetAmount");
-  const category = String(categoryEl?.value || "").trim();
-  const amount = Math.round((Number(amountEl?.value) || 0) * 100) / 100;
-
-  if (!category) {
-    setBudgetError("Please choose a category.");
-    return null;
-  }
-
-  if (!Number.isFinite(amount) || amount < 0) {
-    setBudgetError("Please enter a valid budget amount.");
-    return null;
-  }
-
-  const duplicate = (getState().budgets || []).find((budget) => budget.category === category && budget.id !== existingId);
-  if (duplicate) {
-    setBudgetError("That category already has a monthly budget. Edit it instead.");
-    return null;
-  }
-
+  const category = String(document.getElementById("budgetCategory")?.value || "").trim();
+  const amount = Math.round((Number(document.getElementById("budgetAmount")?.value) || 0) * 100) / 100;
+  if (!category) return setBudgetError("Please choose a category."), null;
+  if (!Number.isFinite(amount) || amount < 0) return setBudgetError("Please enter a valid budget amount."), null;
+  const duplicate = (getState().budgets || []).find((b) => b.category === category && b.id !== existingId);
+  if (duplicate) return setBudgetError("That category already has a monthly budget. Edit it instead."), null;
   return { id: existingId || makeId(), category, amount };
 }
 
 function buildRecurringFromForm(existingId) {
-  const typeEl = document.getElementById("recurringType");
-  const amountEl = document.getElementById("recurringAmount");
-  const categoryEl = document.getElementById("recurringCategory");
-  const accountEl = document.getElementById("recurringAccount");
-  const startDateEl = document.getElementById("recurringStartDate");
-  const dayEl = document.getElementById("recurringDayOfMonth");
-  const labelEl = document.getElementById("recurringLabel");
-  const activeEl = document.getElementById("recurringActive");
+  const type = document.getElementById("recurringType")?.value === "income" ? "income" : "expense";
+  const amount = Math.round((Number(document.getElementById("recurringAmount")?.value) || 0) * 100) / 100;
+  const category = String(document.getElementById("recurringCategory")?.value || "Other").trim() || "Other";
+  const account = String(document.getElementById("recurringAccount")?.value || "checking").trim() || "checking";
+  const startDate = document.getElementById("recurringStartDate")?.value || "";
+  const dayOfMonth = Number(document.getElementById("recurringDayOfMonth")?.value);
+  const label = String(document.getElementById("recurringLabel")?.value || "").trim();
+  const active = Boolean(document.getElementById("recurringActive")?.checked);
 
-  const type = typeEl?.value === "income" ? "income" : "expense";
-  const amount = Math.round((Number(amountEl?.value) || 0) * 100) / 100;
-  const category = String(categoryEl?.value || "Other").trim() || "Other";
-  const account = String(accountEl?.value || "checking").trim() || "checking";
-  const startDate = startDateEl?.value || "";
-  const dayOfMonth = Number(dayEl?.value);
-  const label = String(labelEl?.value || "").trim();
-  const active = Boolean(activeEl?.checked);
-
-  if (!Number.isFinite(amount) || amount <= 0) {
-    setRecurringError("Please enter a valid recurring amount greater than 0.");
-    return null;
-  }
-
-  if (!startDate) {
-    setRecurringError("Please choose a start date.");
-    return null;
-  }
-
-  if (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31) {
-    setRecurringError("Monthly day must be between 1 and 31.");
-    return null;
-  }
-
-  if (!label) {
-    setRecurringError("Please add a label or note so this recurring item is easy to recognize.");
-    return null;
-  }
+  if (!Number.isFinite(amount) || amount <= 0) return setRecurringError("Please enter a valid recurring amount greater than 0."), null;
+  if (!startDate) return setRecurringError("Please choose a start date."), null;
+  if (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31) return setRecurringError("Monthly day must be between 1 and 31."), null;
+  if (!label) return setRecurringError("Please add a label or note so this recurring item is easy to recognize."), null;
 
   return {
     id: existingId || makeId(),
@@ -209,28 +145,71 @@ function buildRecurringFromForm(existingId) {
     label,
     active,
     startDate,
-    schedule: {
-      frequency: "monthly",
-      dayOfMonth
-    },
+    schedule: { frequency: "monthly", dayOfMonth },
     source: "user"
   };
+}
+
+function createBackupPayload() {
+  return { version: 1, exportedAt: new Date().toISOString(), state: getState(), profile: loadProfile() };
+}
+
+function validateBackupPayload(payload) {
+  if (!payload || typeof payload !== "object") throw new Error("This file doesn't look like an Atlas backup.");
+  if (!payload.state || typeof payload.state !== "object") throw new Error("The backup is missing app state.");
+  if (payload.state.transactions && !Array.isArray(payload.state.transactions)) throw new Error("Transactions must be an array.");
+  if (payload.state.recurringTransactions && !Array.isArray(payload.state.recurringTransactions)) throw new Error("Recurring transactions must be an array.");
+  if (payload.state.budgets && !Array.isArray(payload.state.budgets)) throw new Error("Budgets must be an array.");
+  if (payload.state.categories && !Array.isArray(payload.state.categories)) throw new Error("Categories must be an array.");
+  if (payload.profile != null && typeof payload.profile !== "object") throw new Error("Profile data must be an object.");
+}
+
+function downloadBackupFile(payload) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `atlas-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+async function importBackupFile(file) {
+  if (!file) return;
+  try {
+    const payload = JSON.parse(await file.text());
+    validateBackupPayload(payload);
+    replaceState(payload.state);
+    const nextProfile = replaceProfile(payload.profile);
+    dashboardProfile = nextProfile;
+    if (nextProfile) {
+      renderFromProfile(nextProfile);
+    } else {
+      showSetup();
+      prefillSetupForm(null);
+    }
+    resetCategoryForm();
+    resetBudgetForm();
+    resetRecurringForm();
+    setBackupMessage("Backup imported successfully.");
+  } catch (error) {
+    setBackupMessage(error?.message || "That backup file couldn't be imported.", true);
+  }
 }
 
 function startEditBudget(id) {
   const budget = (getState().budgets || []).find((item) => item.id === id);
   if (!budget) return;
-
   const editIdEl = document.getElementById("budgetEditId");
   const amountEl = document.getElementById("budgetAmount");
   const submitBtn = document.getElementById("budgetSubmitBtn");
   const cancelBtn = document.getElementById("budgetCancelBtn");
-
   if (editIdEl) editIdEl.value = budget.id;
   if (amountEl) amountEl.value = budget.amount;
   if (submitBtn) submitBtn.textContent = "Save Changes";
   if (cancelBtn) cancelBtn.style.display = "inline-flex";
-
   populateBudgetCategoryOptions(budget.category);
   setBudgetError("");
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -239,29 +218,28 @@ function startEditBudget(id) {
 function startEditRecurring(id) {
   const recurring = getRecurringUserTransactions().find((item) => item.id === id);
   if (!recurring) return;
-
-  const editIdEl = document.getElementById("recurringEditId");
-  const typeEl = document.getElementById("recurringType");
-  const amountEl = document.getElementById("recurringAmount");
-  const accountEl = document.getElementById("recurringAccount");
-  const startDateEl = document.getElementById("recurringStartDate");
-  const dayEl = document.getElementById("recurringDayOfMonth");
-  const labelEl = document.getElementById("recurringLabel");
-  const activeEl = document.getElementById("recurringActive");
-  const submitBtn = document.getElementById("recurringSubmitBtn");
-  const cancelBtn = document.getElementById("recurringCancelBtn");
-
-  if (editIdEl) editIdEl.value = recurring.id;
-  if (typeEl) typeEl.value = recurring.type || "expense";
-  if (amountEl) amountEl.value = recurring.amount;
-  if (accountEl) accountEl.value = recurring.account || "checking";
-  if (startDateEl) startDateEl.value = recurring.startDate || todayISO();
-  if (dayEl) dayEl.value = recurring?.schedule?.dayOfMonth || 1;
-  if (labelEl) labelEl.value = recurring.label || recurring.note || "";
-  if (activeEl) activeEl.checked = recurring.active !== false;
-  if (submitBtn) submitBtn.textContent = "Save Changes";
-  if (cancelBtn) cancelBtn.style.display = "inline-flex";
-
+  const ids = {
+    editIdEl: "recurringEditId",
+    typeEl: "recurringType",
+    amountEl: "recurringAmount",
+    accountEl: "recurringAccount",
+    startDateEl: "recurringStartDate",
+    dayEl: "recurringDayOfMonth",
+    labelEl: "recurringLabel",
+    activeEl: "recurringActive",
+    submitBtn: "recurringSubmitBtn",
+    cancelBtn: "recurringCancelBtn"
+  };
+  document.getElementById(ids.editIdEl).value = recurring.id;
+  document.getElementById(ids.typeEl).value = recurring.type || "expense";
+  document.getElementById(ids.amountEl).value = recurring.amount;
+  document.getElementById(ids.accountEl).value = recurring.account || "checking";
+  document.getElementById(ids.startDateEl).value = recurring.startDate || todayISO();
+  document.getElementById(ids.dayEl).value = recurring?.schedule?.dayOfMonth || 1;
+  document.getElementById(ids.labelEl).value = recurring.label || recurring.note || "";
+  document.getElementById(ids.activeEl).checked = recurring.active !== false;
+  document.getElementById(ids.submitBtn).textContent = "Save Changes";
+  document.getElementById(ids.cancelBtn).style.display = "inline-flex";
   populateRecurringCategoryOptions(recurring.category || "Other");
   setRecurringError("");
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -269,44 +247,28 @@ function startEditRecurring(id) {
 
 function deleteBudget(id) {
   setBudgets((getState().budgets || []).filter((budget) => budget.id !== id));
-
-  if (document.getElementById("budgetEditId")?.value === id) {
-    resetBudgetForm();
-  }
-
+  if (document.getElementById("budgetEditId")?.value === id) resetBudgetForm();
   initDashboard(dashboardProfile);
 }
 
 function deleteRecurring(id) {
   saveRecurringUserTransactions(getRecurringUserTransactions().filter((tx) => tx.id !== id));
-
-  if (document.getElementById("recurringEditId")?.value === id) {
-    resetRecurringForm();
-  }
-
+  if (document.getElementById("recurringEditId")?.value === id) resetRecurringForm();
   initDashboard(dashboardProfile);
 }
 
 function toggleRecurringActive(id) {
-  const nextRecurring = getRecurringUserTransactions().map((tx) => (
-    tx.id === id ? { ...tx, active: tx.active === false } : tx
-  ));
+  const nextRecurring = getRecurringUserTransactions().map((tx) => tx.id === id ? { ...tx, active: tx.active === false } : tx);
   saveRecurringUserTransactions(nextRecurring);
-
   if (document.getElementById("recurringEditId")?.value === id) {
     const updated = nextRecurring.find((tx) => tx.id === id);
     if (updated) startEditRecurring(updated.id);
   }
-
   initDashboard(dashboardProfile);
 }
 
 function deleteCategory(category) {
-  if (isCategoryInUse(category)) {
-    setCategoryError("That category is still in use, so it can't be deleted yet.");
-    return;
-  }
-
+  if (isCategoryInUse(category)) return setCategoryError("That category is still in use, so it can't be deleted yet.");
   setCategories((getState().categories || []).filter((item) => item !== category));
   setCategoryError("");
   initDashboard(dashboardProfile);
@@ -314,132 +276,96 @@ function deleteCategory(category) {
 
 function setupCategoryControls() {
   if (categoryControlsReady) return;
-
   const form = document.getElementById("categoryForm");
   const inputEl = document.getElementById("categoryName");
-
-  if (form) {
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const nextCategory = normalizeCategoryName(inputEl?.value || "");
-
-      if (!nextCategory) {
-        setCategoryError("Please enter a category name.");
-        return;
-      }
-
-      if (getAllCategories().some((category) => category.toLowerCase() === nextCategory.toLowerCase())) {
-        setCategoryError("That category already exists.");
-        return;
-      }
-
-      setCategories((getState().categories || []).concat(nextCategory));
-      resetCategoryForm();
-      initDashboard(dashboardProfile);
-    });
-  }
-
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const nextCategory = normalizeCategoryName(inputEl?.value || "");
+    if (!nextCategory) return setCategoryError("Please enter a category name.");
+    if (getAllCategories().some((c) => c.toLowerCase() === nextCategory.toLowerCase())) return setCategoryError("That category already exists.");
+    setCategories((getState().categories || []).concat(nextCategory));
+    resetCategoryForm();
+    initDashboard(dashboardProfile);
+  });
   categoryControlsReady = true;
 }
 
 function setupBudgetControls() {
   if (budgetControlsReady) return;
-
   const form = document.getElementById("budgetForm");
   const cancelBtn = document.getElementById("budgetCancelBtn");
   const editIdEl = document.getElementById("budgetEditId");
-
-  if (form) {
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      setBudgetError("");
-
-      const existingId = editIdEl?.value || "";
-      const nextBudget = buildBudgetFromForm(existingId);
-      if (!nextBudget) return;
-
-      const budgets = [...(getState().budgets || [])];
-      const updatedBudgets = existingId
-        ? budgets.map((budget) => (budget.id === existingId ? nextBudget : budget))
-        : budgets.concat(nextBudget);
-
-      setBudgets(updatedBudgets);
-      resetBudgetForm();
-      initDashboard(dashboardProfile);
-    });
-  }
-
-  if (cancelBtn) cancelBtn.addEventListener("click", resetBudgetForm);
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    setBudgetError("");
+    const existingId = editIdEl?.value || "";
+    const nextBudget = buildBudgetFromForm(existingId);
+    if (!nextBudget) return;
+    const budgets = [...(getState().budgets || [])];
+    setBudgets(existingId ? budgets.map((b) => (b.id === existingId ? nextBudget : b)) : budgets.concat(nextBudget));
+    resetBudgetForm();
+    initDashboard(dashboardProfile);
+  });
+  cancelBtn?.addEventListener("click", resetBudgetForm);
   budgetControlsReady = true;
 }
 
 function setupRecurringControls() {
   if (recurringControlsReady) return;
-
   const form = document.getElementById("recurringForm");
   const cancelBtn = document.getElementById("recurringCancelBtn");
   const editIdEl = document.getElementById("recurringEditId");
-
-  if (form) {
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      setRecurringError("");
-
-      const existingId = editIdEl?.value || "";
-      const nextRecurring = buildRecurringFromForm(existingId);
-      if (!nextRecurring) return;
-
-      const recurringTransactions = [...getRecurringUserTransactions()];
-      const updatedRecurring = existingId
-        ? recurringTransactions.map((tx) => (tx.id === existingId ? nextRecurring : tx))
-        : recurringTransactions.concat(nextRecurring);
-
-      saveRecurringUserTransactions(updatedRecurring);
-      resetRecurringForm();
-      initDashboard(dashboardProfile);
-    });
-  }
-
-  if (cancelBtn) cancelBtn.addEventListener("click", resetRecurringForm);
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    setRecurringError("");
+    const existingId = editIdEl?.value || "";
+    const nextRecurring = buildRecurringFromForm(existingId);
+    if (!nextRecurring) return;
+    const items = [...getRecurringUserTransactions()];
+    saveRecurringUserTransactions(existingId ? items.map((t) => (t.id === existingId ? nextRecurring : t)) : items.concat(nextRecurring));
+    resetRecurringForm();
+    initDashboard(dashboardProfile);
+  });
+  cancelBtn?.addEventListener("click", resetRecurringForm);
   recurringControlsReady = true;
+}
+
+function setupBackupControls() {
+  if (backupControlsReady) return;
+  const exportBtn = document.getElementById("exportBackupBtn");
+  const importInput = document.getElementById("importBackupFile");
+  exportBtn?.addEventListener("click", () => {
+    downloadBackupFile(createBackupPayload());
+    setBackupMessage("Backup exported successfully.");
+  });
+  importInput?.addEventListener("change", async () => {
+    await importBackupFile(importInput.files?.[0]);
+    importInput.value = "";
+  });
+  backupControlsReady = true;
 }
 
 function renderCategorySection() {
   const listEl = document.getElementById("categoryList");
   const emptyEl = document.getElementById("categoryEmpty");
   if (!listEl || !emptyEl) return;
-
   const customCategories = [...(getState().categories || [])].sort((a, b) => a.localeCompare(b));
-  listEl.innerHTML = "";
-
-  if (!customCategories.length) {
-    emptyEl.classList.remove("hidden");
-  } else {
-    emptyEl.classList.add("hidden");
-  }
-
   const visibleCategories = getDashboardCategories();
+  listEl.innerHTML = "";
+  emptyEl.classList.toggle("hidden", customCategories.length > 0);
+
   for (const category of visibleCategories) {
     const isCustom = customCategories.includes(category);
     const row = document.createElement("div");
     row.className = "categoryRow";
-
-    const badgeClass = isCustom ? "categoryBadge custom" : "categoryBadge";
-    const badgeLabel = isCustom ? "Custom" : "Default";
-    const usageText = isCategoryInUse(category) ? "In use" : "Not in use";
-    const deleteButton = isCustom
-      ? `<button class="btn secondary" data-category-delete="${escapeHtml(category)}" type="button">Delete</button>`
-      : "";
-
     row.innerHTML = `
       <div class="categoryMeta">
         <strong>${escapeHtml(category)}</strong>
-        <span class="${badgeClass}">${badgeLabel}</span>
-        <span class="muted">${usageText}</span>
+        <span class="${isCustom ? "categoryBadge custom" : "categoryBadge"}">${isCustom ? "Custom" : "Default"}</span>
+        <span class="muted">${isCategoryInUse(category) ? "In use" : "Not in use"}</span>
       </div>
-      ${deleteButton}
+      ${isCustom ? `<button class="btn secondary" data-category-delete="${escapeHtml(category)}" type="button">Delete</button>` : ""}
     `;
-
     listEl.appendChild(row);
   }
 
@@ -452,28 +378,17 @@ function renderBudgetSection(categoryTotals) {
   const listEl = document.getElementById("budgetList");
   const emptyEl = document.getElementById("budgetEmpty");
   if (!listEl || !emptyEl) return;
-
   populateBudgetCategoryOptions(document.getElementById("budgetCategory")?.value || "Other");
-
   const summaries = getBudgetSummaries(getState().budgets, categoryTotals);
   listEl.innerHTML = "";
-
-  if (!summaries.length) {
-    emptyEl.classList.remove("hidden");
-    return;
-  }
-
-  emptyEl.classList.add("hidden");
+  emptyEl.classList.toggle("hidden", summaries.length > 0);
 
   for (const summary of summaries) {
+    const width = Math.max(0, Math.min(100, Math.round(summary.percentUsed)));
+    const toneClass = summary.isOverBudget ? "budgetTone over" : "budgetTone";
+    const statusText = summary.isOverBudget ? `${formatMoney(Math.abs(summary.remaining))} over budget` : `${formatMoney(summary.remaining)} remaining`;
     const card = document.createElement("div");
     card.className = `budgetCard${summary.isOverBudget ? " over" : ""}`;
-    const toneClass = summary.isOverBudget ? "budgetTone over" : "budgetTone";
-    const statusText = summary.isOverBudget
-      ? `${formatMoney(Math.abs(summary.remaining))} over budget`
-      : `${formatMoney(summary.remaining)} remaining`;
-    const width = Math.max(0, Math.min(100, Math.round(summary.percentUsed)));
-
     card.innerHTML = `
       <div class="budgetCardHeader">
         <div class="budgetMeta">
@@ -482,11 +397,9 @@ function renderBudgetSection(categoryTotals) {
         </div>
         <div class="${toneClass}">${statusText}</div>
       </div>
-
       <div class="budgetBar" aria-hidden="true">
         <div class="budgetBarFill${summary.isOverBudget ? " over" : ""}" style="width:${width}%;"></div>
       </div>
-
       <div class="budgetFoot">
         <div class="muted">${Math.round(summary.percentUsed)}% of budget used this month</div>
         <div class="budgetBtns">
@@ -495,40 +408,24 @@ function renderBudgetSection(categoryTotals) {
         </div>
       </div>
     `;
-
     listEl.appendChild(card);
   }
 
-  listEl.querySelectorAll("button[data-budget-edit]").forEach((btn) => {
-    btn.addEventListener("click", () => startEditBudget(btn.dataset.budgetEdit));
-  });
-
-  listEl.querySelectorAll("button[data-budget-delete]").forEach((btn) => {
-    btn.addEventListener("click", () => deleteBudget(btn.dataset.budgetDelete));
-  });
+  listEl.querySelectorAll("button[data-budget-edit]").forEach((btn) => btn.addEventListener("click", () => startEditBudget(btn.dataset.budgetEdit)));
+  listEl.querySelectorAll("button[data-budget-delete]").forEach((btn) => btn.addEventListener("click", () => deleteBudget(btn.dataset.budgetDelete)));
 }
 
 function renderRecurringSection() {
   const listEl = document.getElementById("recurringList");
   const emptyEl = document.getElementById("recurringEmpty");
   if (!listEl || !emptyEl) return;
-
   populateRecurringCategoryOptions(document.getElementById("recurringCategory")?.value || "Other");
-
-  const recurringTransactions = [...getRecurringUserTransactions()]
-    .sort((a, b) => {
-      if ((a.active !== false) !== (b.active !== false)) return a.active === false ? 1 : -1;
-      return String(a.label || a.note || "").localeCompare(String(b.label || b.note || ""));
-    });
-
+  const recurringTransactions = [...getRecurringUserTransactions()].sort((a, b) => {
+    if ((a.active !== false) !== (b.active !== false)) return a.active === false ? 1 : -1;
+    return String(a.label || a.note || "").localeCompare(String(b.label || b.note || ""));
+  });
   listEl.innerHTML = "";
-
-  if (!recurringTransactions.length) {
-    emptyEl.classList.remove("hidden");
-    return;
-  }
-
-  emptyEl.classList.add("hidden");
+  emptyEl.classList.toggle("hidden", recurringTransactions.length > 0);
 
   const prettyAccount = (account) => {
     const value = String(account || "checking").toLowerCase();
@@ -539,10 +436,9 @@ function renderRecurringSection() {
   };
 
   for (const tx of recurringTransactions) {
-    const card = document.createElement("div");
-    card.className = `recurringCard${tx.active === false ? " paused" : ""}`;
     const isActive = tx.active !== false;
-
+    const card = document.createElement("div");
+    card.className = `recurringCard${isActive ? "" : " paused"}`;
     card.innerHTML = `
       <div class="recurringHeader">
         <div class="recurringMeta">
@@ -552,7 +448,6 @@ function renderRecurringSection() {
         </div>
         <div class="recurringStatus${isActive ? "" : " paused"}">${isActive ? "Active" : "Paused"}</div>
       </div>
-
       <div class="recurringFoot">
         <div class="muted">${isActive ? "Included in monthly summaries." : "Ignored until you resume it."}</div>
         <div class="budgetBtns">
@@ -562,19 +457,12 @@ function renderRecurringSection() {
         </div>
       </div>
     `;
-
     listEl.appendChild(card);
   }
 
-  listEl.querySelectorAll("button[data-recurring-toggle]").forEach((btn) => {
-    btn.addEventListener("click", () => toggleRecurringActive(btn.dataset.recurringToggle));
-  });
-  listEl.querySelectorAll("button[data-recurring-edit]").forEach((btn) => {
-    btn.addEventListener("click", () => startEditRecurring(btn.dataset.recurringEdit));
-  });
-  listEl.querySelectorAll("button[data-recurring-delete]").forEach((btn) => {
-    btn.addEventListener("click", () => deleteRecurring(btn.dataset.recurringDelete));
-  });
+  listEl.querySelectorAll("button[data-recurring-toggle]").forEach((btn) => btn.addEventListener("click", () => toggleRecurringActive(btn.dataset.recurringToggle)));
+  listEl.querySelectorAll("button[data-recurring-edit]").forEach((btn) => btn.addEventListener("click", () => startEditRecurring(btn.dataset.recurringEdit)));
+  listEl.querySelectorAll("button[data-recurring-delete]").forEach((btn) => btn.addEventListener("click", () => deleteRecurring(btn.dataset.recurringDelete)));
 }
 
 function renderTrendSection(transactions, recurringTransactions, yearMonth) {
@@ -587,82 +475,60 @@ function renderTrendSection(transactions, recurringTransactions, yearMonth) {
 
   const trendPoints = getExpenseTrend(transactions, recurringTransactions, yearMonth, 6);
   const maxExpense = Math.max(0, ...trendPoints.map((point) => point.expense));
-
   if (trendChartEl && trendEmptyEl) {
     trendChartEl.innerHTML = "";
-
-    if (!trendPoints.some((point) => point.expense > 0)) {
-      trendEmptyEl.classList.remove("hidden");
-    } else {
-      trendEmptyEl.classList.add("hidden");
-
+    trendEmptyEl.classList.toggle("hidden", trendPoints.some((point) => point.expense > 0));
+    if (trendPoints.some((point) => point.expense > 0)) {
       for (const point of trendPoints) {
+        const height = maxExpense > 0 ? Math.max(6, Math.round((point.expense / maxExpense) * 150)) : 6;
         const group = document.createElement("div");
         group.className = "trendBarGroup";
-        const height = maxExpense > 0 ? Math.max(6, Math.round((point.expense / maxExpense) * 150)) : 6;
-
         group.innerHTML = `
           <div class="trendBarValue">${formatMoney(point.expense)}</div>
-          <div class="trendBarTrack" aria-hidden="true">
-            <div class="trendBarFill" style="height:${height}px;"></div>
-          </div>
+          <div class="trendBarTrack" aria-hidden="true"><div class="trendBarFill" style="height:${height}px;"></div></div>
           <div class="trendBarLabel">${escapeHtml(point.label)}</div>
         `;
-
         trendChartEl.appendChild(group);
       }
     }
   }
 
   const categoryItems = getCategoryBreakdownItems(getCategoryTotals(transactions, yearMonth, recurringTransactions)).slice(0, 5);
-
   if (breakdownEl && breakdownEmptyEl) {
     breakdownEl.innerHTML = "";
-
-    if (!categoryItems.length) {
-      breakdownEmptyEl.classList.remove("hidden");
-    } else {
-      breakdownEmptyEl.classList.add("hidden");
-
-      for (const item of categoryItems) {
-        const row = document.createElement("div");
-        row.className = "categoryBreakdownRow";
-        row.innerHTML = `
-          <div class="categoryBreakdownTop">
-            <span>${escapeHtml(item.category)}</span>
-            <strong>${formatMoney(item.amount)} (${Math.round(item.share)}%)</strong>
-          </div>
-          <div class="categoryBreakdownBar" aria-hidden="true">
-            <div class="categoryBreakdownFill" style="width:${Math.max(4, Math.round(item.share))}%;"></div>
-          </div>
-        `;
-        breakdownEl.appendChild(row);
-      }
+    breakdownEmptyEl.classList.toggle("hidden", categoryItems.length > 0);
+    for (const item of categoryItems) {
+      const row = document.createElement("div");
+      row.className = "categoryBreakdownRow";
+      row.innerHTML = `
+        <div class="categoryBreakdownTop">
+          <span>${escapeHtml(item.category)}</span>
+          <strong>${formatMoney(item.amount)} (${Math.round(item.share)}%)</strong>
+        </div>
+        <div class="categoryBreakdownBar" aria-hidden="true">
+          <div class="categoryBreakdownFill" style="width:${Math.max(4, Math.round(item.share))}%;"></div>
+        </div>
+      `;
+      breakdownEl.appendChild(row);
     }
   }
 
   const currentMonth = getMonthlySummary(transactions, yearMonth, recurringTransactions);
-  const previousYearMonth = shiftYearMonth(yearMonth, -1);
-  const previousMonth = getMonthlySummary(transactions, previousYearMonth, recurringTransactions);
+  const previousMonth = getMonthlySummary(transactions, shiftYearMonth(yearMonth, -1), recurringTransactions);
   const difference = currentMonth.expense - previousMonth.expense;
   const percent = previousMonth.expense > 0 ? (difference / previousMonth.expense) * 100 : 0;
 
-  if (comparisonValueEl) {
-    comparisonValueEl.textContent = formatMoney(currentMonth.expense);
-  }
-
+  if (comparisonValueEl) comparisonValueEl.textContent = formatMoney(currentMonth.expense);
   if (comparisonTextEl) {
-    if (previousMonth.expense === 0 && currentMonth.expense === 0) {
-      comparisonTextEl.textContent = "No expense comparison available yet.";
-    } else if (previousMonth.expense === 0) {
-      comparisonTextEl.textContent = "This is your first month with recorded expenses.";
-    } else if (difference === 0) {
-      comparisonTextEl.textContent = "Spending is flat compared with last month.";
-    } else if (difference > 0) {
-      comparisonTextEl.textContent = `${formatMoney(difference)} more spent than last month (${Math.round(percent)}% increase).`;
-    } else {
-      comparisonTextEl.textContent = `${formatMoney(Math.abs(difference))} less spent than last month (${Math.round(Math.abs(percent))}% decrease).`;
-    }
+    comparisonTextEl.textContent = previousMonth.expense === 0 && currentMonth.expense === 0
+      ? "No expense comparison available yet."
+      : previousMonth.expense === 0
+        ? "This is your first month with recorded expenses."
+        : difference === 0
+          ? "Spending is flat compared with last month."
+          : difference > 0
+            ? `${formatMoney(difference)} more spent than last month (${Math.round(percent)}% increase).`
+            : `${formatMoney(Math.abs(difference))} less spent than last month (${Math.round(Math.abs(percent))}% decrease).`;
   }
 }
 
@@ -672,81 +538,49 @@ function initDashboard(profile) {
   setupCategoryControls();
   setupBudgetControls();
   setupRecurringControls();
+  setupBackupControls();
 
   const { transactions, recurringTransactions } = getState();
   const ym = currentYearMonth();
-
   const monthLabel = document.getElementById("monthLabel");
   if (monthLabel) monthLabel.textContent = ym;
 
   const acctBalances = getAccountBalances(transactions, profile);
   const totalBalance = getTotalBalanceFromAccounts(acctBalances);
-
-  const balanceEl = document.getElementById("balance");
-  if (balanceEl) balanceEl.textContent = formatMoney(totalBalance);
-
-  const checkingDisplay = document.getElementById("checkingDisplay");
-  const savingsDisplay = document.getElementById("savingsDisplay");
-  const cashDisplay = document.getElementById("cashDisplay");
-
-  if (checkingDisplay) checkingDisplay.textContent = formatMoney(acctBalances.checking);
-  if (savingsDisplay) savingsDisplay.textContent = formatMoney(acctBalances.savings);
-  if (cashDisplay) cashDisplay.textContent = formatMoney(acctBalances.cash);
-
-  const breakdownEl = document.getElementById("balanceBreakdown");
-  const barChecking = document.getElementById("barChecking");
-  const barSavings = document.getElementById("barSavings");
-  const barCash = document.getElementById("barCash");
   const totalForBars = Math.max(0, Number(totalBalance) || 0);
   const pct = (x) => (totalForBars > 0 ? (Math.max(0, x) / totalForBars) * 100 : 0);
 
-  if (breakdownEl) {
-    breakdownEl.textContent =
-      `Checking ${formatMoney(acctBalances.checking)} - ` +
-      `Savings ${formatMoney(acctBalances.savings)} - ` +
-      `Cash ${formatMoney(acctBalances.cash)}`;
-  }
+  const pairs = [
+    ["balance", formatMoney(totalBalance)],
+    ["checkingDisplay", formatMoney(acctBalances.checking)],
+    ["savingsDisplay", formatMoney(acctBalances.savings)],
+    ["cashDisplay", formatMoney(acctBalances.cash)]
+  ];
+  pairs.forEach(([id, value]) => { const el = document.getElementById(id); if (el) el.textContent = value; });
 
-  if (barChecking) barChecking.style.width = `${Math.round(pct(acctBalances.checking))}%`;
-  if (barSavings) barSavings.style.width = `${Math.round(pct(acctBalances.savings))}%`;
-  if (barCash) barCash.style.width = `${Math.round(pct(acctBalances.cash))}%`;
-
-  if (totalForBars === 0) {
-    if (barChecking) barChecking.style.width = "34%";
-    if (barSavings) barSavings.style.width = "33%";
-    if (barCash) barCash.style.width = "33%";
-  }
+  const breakdownEl = document.getElementById("balanceBreakdown");
+  if (breakdownEl) breakdownEl.textContent = `Checking ${formatMoney(acctBalances.checking)} - Savings ${formatMoney(acctBalances.savings)} - Cash ${formatMoney(acctBalances.cash)}`;
+  const barChecking = document.getElementById("barChecking");
+  const barSavings = document.getElementById("barSavings");
+  const barCash = document.getElementById("barCash");
+  if (barChecking) barChecking.style.width = `${Math.round(pct(acctBalances.checking)) || 34}%`;
+  if (barSavings) barSavings.style.width = `${Math.round(pct(acctBalances.savings)) || 33}%`;
+  if (barCash) barCash.style.width = `${Math.round(pct(acctBalances.cash)) || 33}%`;
 
   const recentList = document.getElementById("recentList");
   const recentEmpty = document.getElementById("recentEmpty");
-
   if (recentList && recentEmpty) {
-    const recent = [...(transactions || [])]
-      .sort((a, b) => (a.date < b.date ? 1 : -1))
-      .slice(0, 5);
-
+    const recent = [...(transactions || [])].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 5);
     recentList.innerHTML = "";
-
-    if (!recent.length) {
-      recentEmpty.style.display = "block";
-    } else {
-      recentEmpty.style.display = "none";
-
-      for (const tx of recent) {
-        const li = document.createElement("li");
-        const accountLabel = tx.type === "transfer"
-          ? `${escapeHtml(tx.fromAccount || "checking")} -> ${escapeHtml(tx.toAccount || "savings")}`
-          : escapeHtml(tx.account || "checking");
-        const left = tx.type === "transfer"
-          ? `Transfer - ${accountLabel}`
-          : `${escapeHtml(tx.category || "Other")} - ${accountLabel}`;
-
-        li.innerHTML = `
-          <span>${escapeHtml(tx.date)} - ${left}</span>
-          <strong>${tx.type === "income" ? "+" : tx.type === "expense" ? "-" : ""}${formatMoney(tx.amount)}</strong>
-        `;
-        recentList.appendChild(li);
-      }
+    recentEmpty.style.display = recent.length ? "none" : "block";
+    for (const tx of recent) {
+      const li = document.createElement("li");
+      const accountLabel = tx.type === "transfer"
+        ? `${escapeHtml(tx.fromAccount || "checking")} -> ${escapeHtml(tx.toAccount || "savings")}`
+        : escapeHtml(tx.account || "checking");
+      const left = tx.type === "transfer" ? `Transfer - ${accountLabel}` : `${escapeHtml(tx.category || "Other")} - ${accountLabel}`;
+      li.innerHTML = `<span>${escapeHtml(tx.date)} - ${left}</span><strong>${tx.type === "income" ? "+" : tx.type === "expense" ? "-" : ""}${formatMoney(tx.amount)}</strong>`;
+      recentList.appendChild(li);
     }
   }
 
@@ -760,7 +594,6 @@ function initDashboard(profile) {
   const incomeEl = document.getElementById("incomeMonth");
   const expenseEl = document.getElementById("expenseMonth");
   const netEl = document.getElementById("netMonth");
-
   if (incomeEl) incomeEl.textContent = formatMoney(monthly.income);
   if (expenseEl) expenseEl.textContent = formatMoney(totalExpenses);
   if (netEl) netEl.textContent = formatMoney(net);
@@ -773,61 +606,35 @@ function initDashboard(profile) {
 
   const insightsList = document.getElementById("insightsList");
   const insightsEmpty = document.getElementById("insightsEmpty");
-
   if (insightsList && insightsEmpty) {
-    insightsList.innerHTML = "";
     const insights = [];
+    if (monthly.income === 0 && totalExpenses > 0) insights.push(["No income logged this month", "Add an income transaction to see accurate net."]);
+    else if (net < 0) insights.push(["You're net negative this month", `Net: ${formatMoney(net)}.`]);
+    else insights.push(["You're net positive this month", `Net: ${formatMoney(net)}.`]);
+    if (totalExpenses > 0 && fixedTotal > 0) insights.push(["Fixed expenses share", `${Math.round((fixedTotal / totalExpenses) * 100)}% of this month's expenses are fixed or recurring.`]);
+    const overBudget = getBudgetSummaries(getState().budgets, totalsObj).filter((item) => item.isOverBudget);
+    if (overBudget.length) insights.push(["Budget alert", `${overBudget[0].category} is ${formatMoney(Math.abs(overBudget[0].remaining))} over budget.`]);
+    const paused = getRecurringUserTransactions().filter((tx) => tx.active === false).length;
+    if (paused > 0) insights.push(["Paused recurring items", `${paused} recurring ${paused === 1 ? "item is" : "items are"} currently paused.`]);
 
-    if (monthly.income === 0 && totalExpenses > 0) {
-      insights.push(["No income logged this month", "Add an income transaction to see accurate net."]);
-    } else if (net < 0) {
-      insights.push(["You're net negative this month", `Net: ${formatMoney(net)}.`]);
-    } else {
-      insights.push(["You're net positive this month", `Net: ${formatMoney(net)}.`]);
-    }
-
-    if (totalExpenses > 0 && fixedTotal > 0) {
-      const share = Math.round((fixedTotal / totalExpenses) * 100);
-      insights.push(["Fixed expenses share", `${share}% of this month's expenses are fixed or recurring.`]);
-    }
-
-    const overBudgetItems = getBudgetSummaries(getState().budgets, totalsObj).filter((item) => item.isOverBudget);
-    if (overBudgetItems.length > 0) {
-      insights.push(["Budget alert", `${overBudgetItems[0].category} is ${formatMoney(Math.abs(overBudgetItems[0].remaining))} over budget.`]);
-    }
-
-    const pausedRecurring = getRecurringUserTransactions().filter((tx) => tx.active === false).length;
-    if (pausedRecurring > 0) {
-      insights.push(["Paused recurring items", `${pausedRecurring} recurring ${pausedRecurring === 1 ? "item is" : "items are"} currently paused.`]);
-    }
-
-    if (insights.length === 0) {
-      insightsEmpty.style.display = "block";
-    } else {
-      insightsEmpty.style.display = "none";
-      for (const [title, sub] of insights.slice(0, 4)) {
-        const li = document.createElement("li");
-        li.innerHTML = `<span>${escapeHtml(title)}</span><strong>${escapeHtml(sub)}</strong>`;
-        insightsList.appendChild(li);
-      }
+    insightsList.innerHTML = "";
+    insightsEmpty.style.display = insights.length ? "none" : "block";
+    for (const [title, sub] of insights.slice(0, 4)) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span>${escapeHtml(title)}</span><strong>${escapeHtml(sub)}</strong>`;
+      insightsList.appendChild(li);
     }
   }
 
   const ul = document.getElementById("topCategories");
   const empty = document.getElementById("emptyTopCategories");
   if (!ul || !empty) return;
-
   const top = Object.entries(totalsObj).sort((a, b) => b[1] - a[1]).slice(0, 5);
   ul.innerHTML = "";
-
-  if (!top.length) {
-    empty.classList.remove("hidden");
-  } else {
-    empty.classList.add("hidden");
-    for (const [cat, total] of top) {
-      const li = document.createElement("li");
-      li.innerHTML = `<span>${escapeHtml(cat)}</span><strong>${formatMoney(total)}</strong>`;
-      ul.appendChild(li);
-    }
+  empty.classList.toggle("hidden", top.length > 0);
+  for (const [cat, total] of top) {
+    const li = document.createElement("li");
+    li.innerHTML = `<span>${escapeHtml(cat)}</span><strong>${formatMoney(total)}</strong>`;
+    ul.appendChild(li);
   }
 }

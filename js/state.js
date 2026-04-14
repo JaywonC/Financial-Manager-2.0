@@ -160,6 +160,26 @@ function getState() {
   return state;
 }
 
+function replaceState(nextState) {
+  const baseState = createDefaultState();
+  const parsedState = {
+    ...baseState,
+    ...nextState,
+    transactions: Array.isArray(nextState?.transactions) ? nextState.transactions : [],
+    recurringTransactions: Array.isArray(nextState?.recurringTransactions) ? nextState.recurringTransactions : [],
+    budgets: Array.isArray(nextState?.budgets) ? nextState.budgets : [],
+    categories: Array.isArray(nextState?.categories) ? nextState.categories : [],
+    migrations: {
+      fixedExpensesToRecurring: Boolean(nextState?.migrations?.fixedExpensesToRecurring)
+    }
+  };
+
+  const { nextState: normalizedState } = migrateLegacyFixedExpenses(parsedState);
+  state = normalizedState;
+  saveState();
+  return state;
+}
+
 function setRecurringTransactions(recurringTransactions) {
   state.recurringTransactions = (recurringTransactions || [])
     .map(normalizeRecurringTransaction)

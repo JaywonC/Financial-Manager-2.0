@@ -24,6 +24,29 @@ function saveProfile(profile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 }
 
+function replaceProfile(profile) {
+  if (!profile || typeof profile !== "object") {
+    localStorage.removeItem(PROFILE_KEY);
+    return null;
+  }
+
+  const nextProfile = {
+    name: profile.name ? String(profile.name).trim() : null,
+    balances: {
+      checking: Number(profile?.balances?.checking) || 0,
+      savings: Number(profile?.balances?.savings) || 0,
+      cash: Number(profile?.balances?.cash) || 0
+    },
+    monthly: {
+      income: Number(profile?.monthly?.income) || 0
+    },
+    createdAt: profile.createdAt ? String(profile.createdAt) : new Date().toISOString()
+  };
+
+  saveProfile(nextProfile);
+  return nextProfile;
+}
+
 function getRecurringFixedExpenses() {
   loadState();
   return (getState().recurringTransactions || [])
