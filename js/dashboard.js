@@ -3,6 +3,7 @@ let categoryControlsReady = false;
 let budgetControlsReady = false;
 let recurringControlsReady = false;
 let backupControlsReady = false;
+let analyticsControlsReady = false;
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (match) => ({
@@ -62,6 +63,7 @@ function setCategoryError(message) { setTextMessage("categoryError", message); }
 function setBudgetError(message) { setTextMessage("budgetError", message); }
 function setRecurringError(message) { setTextMessage("recurringError", message); }
 function setBackupMessage(message, isError = false) { setTextMessage("backupMessage", message, isError); }
+function setAnalyticsError(message) { setTextMessage("analyticsError", message); }
 
 function resetCategoryForm() {
   document.getElementById("categoryForm")?.reset();
@@ -108,6 +110,14 @@ function resetRecurringForm() {
   if (cancelBtn) cancelBtn.style.display = "none";
   populateRecurringCategoryOptions("Other");
   setRecurringError("");
+}
+
+function resetAnalyticsRange() {
+  const startEl = document.getElementById("analyticsStartDate");
+  const endEl = document.getElementById("analyticsEndDate");
+  if (endEl) endEl.value = todayISO();
+  if (startEl) startEl.value = shiftYearMonth(currentYearMonth(), -1) + "-01";
+  setAnalyticsError("");
 }
 
 function buildBudgetFromForm(existingId) {
@@ -345,6 +355,32 @@ function setupBackupControls() {
   backupControlsReady = true;
 }
 
+function setupAnalyticsControls() {
+  if (analyticsControlsReady) return;
+  const resetBtn = document.getElementById("analyticsResetBtn");
+  const inputs = ["analyticsStartDate", "analyticsEndDate"]
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
+
+  for (const input of inputs) {
+    input.addEventListener("input", () => {
+      setAnalyticsError("");
+      initDashboard(dashboardProfile);
+    });
+    input.addEventListener("change", () => {
+      setAnalyticsError("");
+      initDashboard(dashboardProfile);
+    });
+  }
+
+  resetBtn?.addEventListener("click", () => {
+    resetAnalyticsRange();
+    initDashboard(dashboardProfile);
+  });
+
+  analyticsControlsReady = true;
+}
+
 function renderCategorySection() {
   const listEl = document.getElementById("categoryList");
   const emptyEl = document.getElementById("categoryEmpty");
@@ -532,6 +568,67 @@ function renderTrendSection(transactions, recurringTransactions, yearMonth) {
   }
 }
 
+function renderAnalyticsSection(transactions, recurringTransactions) {
+  const startEl = document.getElementById("analyticsStartDate");
+  const endEl = document.getElementById("analyticsEndDate");
+  const expenseEl = document.getElementById("analyticsExpense");
+  const incomeEl = document.getElementById("analyticsIncome");
+  const netEl = document.getElementById("analyticsNet");
+  const avgEl = document.getElementById("analyticsAverageExpense");
+  const biggestEl = document.getElementById("analyticsBiggestCategory");
+  const accountListEl = document.getElementById("analyticsAccountList");
+  const accountEmptyEl = document.getElementById("analyticsAccountEmpty");
+  const largestListEl = document.getElementById("analyticsLargestList");
+  const largestEmptyEl = document.getElementById("analyticsLargestEmpty");
+
+  const startDate = startEl?.value || "";
+  const endDate = endEl?.value || "";
+
+  if (startDate && endDate && startDate > endDate) {
+    setAnalyticsError("Start date must be on or before end date.");
+    return;
+  }
+
+  const inRange = getTransactionsInRange(transactions, recurringTransactions, startDate, endDate);
+  const summary = getAnalyticsSummary(inRange);
+
+  if (expenseEl) expenseEl.textContent = formatMoney(summary.expense);
+  if (incomeEl) incomeEl.textContent = formatMoney(summary.income);
+  if (netEl) netEl.textContent = formatMoney(summary.net);
+  if (avgEl) avgEl.textContent = formatMoney(summary.averageExpense);
+
+  if (biggestEl) {
+    biggestEl.textContent = summary.biggestCategory
+      ? `${summary.biggestCategory.category} · ${formatMoney(summary.biggestCategory.amount)}`
+      : "No expense data yet.";
+  }
+
+  if (accountListEl && accountEmptyEl) {
+    accountListEl.innerHTML = "";
+    accountEmptyEl.classList.toggle("hidden", summary.spendingByAccount.length > 0);
+
+    for (const item of summary.spendingByAccount) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span>${escapeHtml(item.account)}</span><strong>${formatMoney(item.amount)}</strong>`;
+      accountListEl.appendChild(li);
+    }
+  }
+
+  if (largestListEl && largestEmptyEl) {
+    largestListEl.innerHTML = "";
+    largestEmptyEl.classList.toggle("hidden", summary.largestExpenses.length > 0);
+
+    for (const tx of summary.largestExpenses) {
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <span>${escapeHtml(tx.date)} · ${escapeHtml(tx.category || "Other")} · ${escapeHtml(tx.note || "No note")}</span>
+        <strong>${formatMoney(tx.amount)}</strong>
+      `;
+      largestListEl.appendChild(li);
+    }
+  }
+}
+
 function initDashboard(profile) {
   dashboardProfile = profile;
   loadState();
@@ -539,6 +636,11 @@ function initDashboard(profile) {
   setupBudgetControls();
   setupRecurringControls();
   setupBackupControls();
+  setupAnalyticsControls();
+
+  if (!document.getElementById("analyticsStartDate")?.value && !document.getElementById("analyticsEndDate")?.value) {
+    resetAnalyticsRange();
+  }
 
   const { transactions, recurringTransactions } = getState();
   const ym = currentYearMonth();
@@ -603,6 +705,7 @@ function initDashboard(profile) {
   renderBudgetSection(totalsObj);
   renderRecurringSection();
   renderTrendSection(transactions, recurringTransactions, ym);
+  renderAnalyticsSection(transactions, recurringTransactions);
 
   const insightsList = document.getElementById("insightsList");
   const insightsEmpty = document.getElementById("insightsEmpty");

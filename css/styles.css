@@ -682,6 +682,40 @@ select option{
   justify-content:center;
 }
 
+.analyticsActions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.analyticsGrid{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:14px;
+  margin-top:16px;
+}
+
+.analyticsStat,
+.analyticsPanel{
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+  background:#fbfdff;
+}
+
+.analyticsHeadline{
+  margin-top:10px;
+  font-size:22px;
+  font-weight:800;
+}
+
+.analyticsDetailGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:16px;
+  margin-top:16px;
+}
+
 /* =========================
    DASHBOARD 2-COLUMN LAYOUT
 ========================= */
@@ -711,6 +745,14 @@ select option{
   .trendGrid{
     grid-template-columns: 1fr;
   }
+
+  .analyticsGrid{
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .analyticsDetailGrid{
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px){
@@ -725,5 +767,9 @@ select option{
 
   .trendChart{
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .analyticsGrid{
+    grid-template-columns: 1fr;
   }
 }

@@ -161,6 +161,79 @@ function getCategoryBreakdownItems(categoryTotals) {
   }));
 }
 
+function getTransactionsInRange(transactions, recurringTransactions, startDate, endDate) {
+  const baseTransactions = (transactions || []).filter((tx) => {
+    const date = String(tx.date || "");
+    if (!date) return false;
+    if (startDate && date < startDate) return false;
+    if (endDate && date > endDate) return false;
+    return true;
+  });
+
+  const recurringInRange = (recurringTransactions || [])
+    .filter((tx) => tx?.active !== false)
+    .flatMap((tx) => {
+      const start = startDate ? new Date(startDate) : new Date(String(tx.startDate || todayISO()));
+      const end = endDate ? new Date(endDate) : new Date();
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return [];
+
+      const rangeStart = new Date(start.getFullYear(), start.getMonth(), 1);
+      const rangeEnd = new Date(end.getFullYear(), end.getMonth(), 1);
+      const dates = [];
+
+      for (let cursor = new Date(rangeStart); cursor <= rangeEnd; cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)) {
+        const yearMonth = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+        const occurrence = getRecurringOccurrencesForMonth([tx], yearMonth)[0];
+        if (!occurrence) continue;
+        if (startDate && occurrence.date < startDate) continue;
+        if (endDate && occurrence.date > endDate) continue;
+        dates.push(occurrence);
+      }
+
+      return dates;
+    });
+
+  return baseTransactions.concat(recurringInRange).sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+function getAnalyticsSummary(transactionsInRange) {
+  const incomeTransactions = (transactionsInRange || []).filter((tx) => tx.type === "income");
+  const expenseTransactions = (transactionsInRange || []).filter((tx) => tx.type === "expense");
+  const income = incomeTransactions.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  const expense = expenseTransactions.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  const net = income - expense;
+
+  const categoryTotals = {};
+  const accountTotals = {};
+
+  for (const tx of expenseTransactions) {
+    const category = tx.category || "Other";
+    const account = normalizeAccount(tx.account);
+    categoryTotals[category] = (categoryTotals[category] || 0) + (Number(tx.amount) || 0);
+    accountTotals[account] = (accountTotals[account] || 0) + (Number(tx.amount) || 0);
+  }
+
+  const biggestCategoryEntry = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0] || null;
+  const largestExpenses = [...expenseTransactions]
+    .sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0))
+    .slice(0, 5);
+  const spendingByAccount = Object.entries(accountTotals)
+    .sort((a, b) => b[1] - a[1])
+    .map(([account, amount]) => ({ account, amount }));
+  const averageExpense = expenseTransactions.length > 0 ? expense / expenseTransactions.length : 0;
+
+  return {
+    income,
+    expense,
+    net,
+    biggestCategory: biggestCategoryEntry ? { category: biggestCategoryEntry[0], amount: biggestCategoryEntry[1] } : null,
+    largestExpenses,
+    spendingByAccount,
+    averageExpense,
+    expenseCount: expenseTransactions.length
+  };
+}
+
 /* =========================
    Account-based balances
    Supports:

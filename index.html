@@ -345,6 +345,69 @@
 
         <section class="card">
           <div class="cardHeader">
+            <h2>Analytics</h2>
+            <div class="muted">Choose a date range to dig into your spending patterns.</div>
+          </div>
+
+          <form id="analyticsForm" class="form">
+            <label>
+              Start Date
+              <input id="analyticsStartDate" type="date" />
+            </label>
+
+            <label>
+              End Date
+              <input id="analyticsEndDate" type="date" />
+            </label>
+
+            <div class="wide analyticsActions">
+              <button class="btn secondary" id="analyticsResetBtn" type="button">Reset Range</button>
+            </div>
+
+            <p id="analyticsError" class="muted wide" style="display:none; color:#b00020; margin:0;"></p>
+          </form>
+
+          <section class="analyticsGrid">
+            <div class="analyticsStat">
+              <div class="label">Expenses In Range</div>
+              <div id="analyticsExpense" class="big">$0</div>
+            </div>
+            <div class="analyticsStat">
+              <div class="label">Income In Range</div>
+              <div id="analyticsIncome" class="big">$0</div>
+            </div>
+            <div class="analyticsStat">
+              <div class="label">Net In Range</div>
+              <div id="analyticsNet" class="big">$0</div>
+            </div>
+            <div class="analyticsStat">
+              <div class="label">Average Expense</div>
+              <div id="analyticsAverageExpense" class="big">$0</div>
+            </div>
+          </section>
+
+          <section class="analyticsDetailGrid">
+            <div class="analyticsPanel">
+              <div class="label">Biggest Spending Category</div>
+              <div id="analyticsBiggestCategory" class="analyticsHeadline">No expense data yet.</div>
+            </div>
+
+            <div class="analyticsPanel">
+              <div class="label">Spending By Account</div>
+              <ul id="analyticsAccountList" class="list"></ul>
+              <div id="analyticsAccountEmpty" class="muted hidden">No account spending in this range.</div>
+            </div>
+          </section>
+
+          <section class="analyticsPanel" style="margin-top:16px;">
+            <div class="label">Top 5 Largest Expenses</div>
+            <ul id="analyticsLargestList" class="list"></ul>
+            <div id="analyticsLargestEmpty" class="muted hidden">No expense transactions in this range.</div>
+          </section>
+        </section>
+
+        <section class="card">
+          <div class="cardHeader">
             <h2>Top Spending Categories (This Month)</h2>
             <div class="muted" id="monthLabel"></div>
           </div>
